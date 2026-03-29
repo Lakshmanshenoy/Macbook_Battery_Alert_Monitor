@@ -16,8 +16,7 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-PYTHON_VERSION=
-$(python3 --version | awk '{print $2}')
+PYTHON_VERSION=$(python3 --version | awk '{print $2}')
 echo "✅ Python $PYTHON_VERSION found"
 echo ""
 
@@ -35,6 +34,7 @@ source venv/bin/activate
 echo "Installing Python packages..."
 pip install --upgrade pip
 pip install -r requirements.txt
+
 echo ""
 echo "✅ Dependencies installed successfully!"
 echo ""
