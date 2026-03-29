@@ -194,7 +194,7 @@ This project is open-source and available for personal use.
 
 ## Version History
 
-**v1.0** (Current)
+**v1.0.0** (Current)
 - Initial release with GUI
 - Menu bar integration
 - Interactive settings
