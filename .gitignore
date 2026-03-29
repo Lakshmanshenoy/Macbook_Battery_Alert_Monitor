@@ -1,0 +1,38 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Build and Distribution
+dist/
+build/
+*.egg-info/
+*.spec
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Generated Files
+*.bak
+*.backup
+*.log
+
+# Dependencies (optional - uncomment if using local packages)
+# *.whl
+# *.tar.gz
