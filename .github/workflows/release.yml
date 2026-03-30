@@ -1,0 +1,63 @@
+name: Release macOS build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build (PyInstaller)
+        run: |
+          bash build.sh
+
+      - name: Create DMG
+        run: |
+          bash create_dmg.sh
+
+      - name: Generate SHA256 checksums
+        run: |
+          mkdir -p release_artifacts
+          cp "Battery Alert.dmg" release_artifacts/
+          bash scripts/generate_checksums.sh release_artifacts/"Battery Alert.dmg"
+
+      - name: GPG sign checksums
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          # Import maintainer private key from secret
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          # Sign with passphrase from secret
+          gpg --batch --yes --passphrase "$GPG_PASSPHRASE" \
+              --armor --detach-sign --output checksums.txt.asc checksums.txt
+          # Export public key for users
+          gpg --armor --export > release_artifacts/maintainer_public_key.asc
+          cp checksums.txt release_artifacts/checksums.txt
+          cp checksums.txt.asc release_artifacts/checksums.txt.asc
+
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: RELEASE_DRAFT.md
+          files: |
+            release_artifacts/Battery Alert.dmg
+            release_artifacts/checksums.txt
+            release_artifacts/checksums.txt.asc
+            release_artifacts/maintainer_public_key.asc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
