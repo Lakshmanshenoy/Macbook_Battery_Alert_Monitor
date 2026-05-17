@@ -171,6 +171,24 @@ class BatteryAlertApp(rumps.App):
         log_method = getattr(self.logger, level, self.logger.info)
         log_method(message)
 
+    def show_feedback(self, title, message):
+        """Show user-facing feedback reliably across rumps versions."""
+        try:
+            rumps.alert(title, message)
+            return
+        except TypeError:
+            # Some versions can prefer keyword title ordering.
+            try:
+                rumps.alert(message, title=title)
+                return
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+        # Last-resort fallback so user still gets context in logs.
+        self.log_runtime(f"{title}: {message}")
+
     def _write_json_atomic(self, file_path, payload):
         """Write JSON atomically to avoid corruption from interrupted writes."""
         temp_path = file_path.with_suffix(file_path.suffix + ".tmp")
@@ -736,26 +754,32 @@ class BatteryAlertApp(rumps.App):
             self._write_last_update_check(datetime.now())
 
             if not latest:
+                if manual:
+                    self.show_feedback(
+                        "Update Check",
+                        "Could not determine the latest release version right now. Please try again shortly."
+                    )
                 return
 
             if self.is_newer_version(latest, APP_VERSION):
                 message = f"Version {latest} is available. You are on {APP_VERSION}."
                 self.log_runtime(message)
                 if manual:
-                    rumps.alert(message, title="Update Available")
+                    self.show_feedback("Update Available", message)
             elif manual:
-                rumps.alert(f"You are up to date on version {APP_VERSION}.", title="No Updates")
+                self.show_feedback("No Updates", f"You are up to date on version {APP_VERSION}.")
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
             self.log_runtime(f"Update check failed: {e}", level="warning")
             if manual:
-                rumps.alert("Unable to check updates right now. Please try again later.", title="Update Check Failed")
+                self.show_feedback("Update Check Failed", "Unable to check updates right now. Please try again later.")
         except Exception as e:
             self.log_runtime(f"Unexpected update check error: {e}", level="warning")
             if manual:
-                rumps.alert("Unable to check updates right now. Please try again later.", title="Update Check Failed")
+                self.show_feedback("Update Check Failed", "Unable to check updates right now. Please try again later.")
 
     def check_for_updates_now(self, _):
         """Manual update check entrypoint for menu action."""
+        self.show_feedback("Update Check", "Checking for updates...")
         self.check_for_updates(manual=True)
     
     def setup_autolaunch(self):
@@ -877,13 +901,11 @@ Alert Cooldown: {self.settings['alert_cooldown_seconds']} seconds"""
         try:
             bundle_path = self.create_support_bundle_archive()
             self.log_runtime(f"Support bundle exported to {bundle_path}")
-            rumps.alert(
-                f"Support bundle created at:\n{bundle_path}",
-                title="Support Bundle Exported"
-            )
+            subprocess.run(["open", "-R", str(bundle_path)], check=False)
+            self.show_feedback("Support Bundle Exported", f"Support bundle created at:\n{bundle_path}")
         except Exception as e:
             self.log_runtime(f"Failed to export support bundle: {e}", level="warning")
-            rumps.alert(f"Error: {e}", title="Error")
+            self.show_feedback("Error", f"Failed to export support bundle: {e}")
 
     def open_config_folder(self, _):
         """Open the configuration directory in Finder."""

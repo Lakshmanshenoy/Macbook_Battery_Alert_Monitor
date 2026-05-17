@@ -236,3 +236,36 @@ def test_create_support_bundle_archive_contains_core_files(tmp_path):
     assert "config.json" in names
     assert "alert_history.json" in names
     assert "logs/battery_alert.log" in names
+
+
+def test_check_for_updates_manual_empty_latest_shows_feedback(tmp_path, monkeypatch):
+    app = _new_app_for_unit_tests(tmp_path)
+    shown = []
+
+    monkeypatch.setattr(app, "get_latest_release_version", lambda: "")
+    monkeypatch.setattr(app, "show_feedback", lambda title, message: shown.append((title, message)))
+
+    app.check_for_updates(manual=True)
+
+    assert shown
+    assert shown[0][0] == "Update Check"
+    assert "Could not determine" in shown[0][1]
+
+
+def test_export_support_bundle_shows_feedback(tmp_path, monkeypatch):
+    app = _new_app_for_unit_tests(tmp_path)
+    shown = []
+
+    app.config_file.write_text('{"battery_threshold": 20}')
+    app.log_file.write_text('[]')
+    app.runtime_log_file.parent.mkdir(parents=True, exist_ok=True)
+    app.runtime_log_file.write_text('runtime log line')
+
+    monkeypatch.setattr(app, "show_feedback", lambda title, message: shown.append((title, message)))
+    monkeypatch.setattr(battery_alert_module.subprocess, "run", lambda *args, **kwargs: None)
+
+    app.export_support_bundle(None)
+
+    assert shown
+    assert shown[0][0] == "Support Bundle Exported"
+    assert "Support bundle created at:" in shown[0][1]
