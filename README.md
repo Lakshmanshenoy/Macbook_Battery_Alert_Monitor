@@ -226,7 +226,6 @@ If these secrets are not set, the workflow still produces unsigned release artif
 - CI now verifies an uploaded/downloaded artifact pair instead of only checking a locally generated file.
 - Maintainers can run `python3 scripts/run_pre_release_checks.py` to execute the pre-release validation sequence locally.
 
-<<<<<<< HEAD
 ## Release Trust and Maintainability (Phase 9)
 
 - Update checks now support stable/beta channels and track the latest known release URL for direct downloads.
@@ -236,8 +235,12 @@ If these secrets are not set, the workflow still produces unsigned release artif
 - A post-release verification workflow validates published release assets from GitHub Releases.
 - New maintainer scripts are available for release manifest generation, release note drafting, ship checklist execution, and published-asset verification.
 
-=======
->>>>>>> origin/main
+## Quality Gate Automation (Phase 10)
+
+- CI now runs `scripts/checks.sh` as the unified quality gate before artifact jobs.
+- `scripts/checks.sh` runs fixer + syntax validation + tests + smoke checks + synthetic artifact verification.
+- `scripts/fix_indentation_and_conflicts.py` is scoped to project sources (`battery_alert_gui.py`, `scripts/`, `tests/`) to avoid unsafe environment rewrites.
+
 ## System Requirements
 
 - **OS:** macOS 10.13 or later
@@ -300,6 +303,7 @@ For issues or feature requests, please check:
 ## Release Validation
 
 Before cutting a tagged release, run:
+- `bash scripts/checks.sh`
 - `pytest -q`
 - `python3 scripts/release_smoke_test.py`
 - `python3 scripts/run_pre_release_checks.py`

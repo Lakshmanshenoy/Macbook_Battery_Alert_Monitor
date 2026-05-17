@@ -4,6 +4,7 @@ Use this checklist before cutting a tagged release for Battery Alert Monitor.
 
 ## Local Validation
 
+- Run the unified gate with `bash scripts/checks.sh`.
 - Run the full test suite with `pytest -q`.
 - Run the release smoke check script.
 - Run `python3 scripts/run_pre_release_checks.py`.
