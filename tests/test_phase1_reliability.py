@@ -57,6 +57,7 @@ def _new_app_for_unit_tests(tmp_path):
     app.update_state_file = Path(tmp_path) / "update_state.json"
     app.app_state_file = Path(tmp_path) / "app_state.json"
     app.settings = {
+        "config_schema_version": 2,
         "battery_threshold": 20,
         "check_interval": 10,
         "alert_cooldown_seconds": 60,
@@ -68,6 +69,7 @@ def _new_app_for_unit_tests(tmp_path):
     }
     app.alert_history = []
     app.app_state = {
+        "app_state_schema_version": 2,
         "first_launch_completed": False,
         "onboarding_shown_at": None,
         "release_checks_run": 0,
@@ -242,9 +244,39 @@ def test_create_support_bundle_archive_contains_core_files(tmp_path):
     with zipfile.ZipFile(bundle_path, "r") as zf:
         names = set(zf.namelist())
     assert "diagnostics.txt" in names
+    assert "safe_share_guide.txt" in names
+    assert "manifest.json" in names
     assert "config.json" in names
     assert "alert_history.json" in names
     assert "logs/battery_alert.log" in names
+
+
+def test_migrate_config_payload_adds_schema_and_defaults(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    migrated = app.migrate_config_payload({"battery_threshold": 35})
+
+    assert migrated["config_schema_version"] == battery_alert_module.CONFIG_SCHEMA_VERSION
+    assert migrated["battery_threshold"] == 35
+    assert migrated["enable_update_checks"] is True
+
+
+def test_migrate_app_state_payload_adds_schema_and_defaults(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    migrated = app.migrate_app_state_payload({"release_checks_run": 7})
+
+    assert migrated["app_state_schema_version"] == battery_alert_module.APP_STATE_SCHEMA_VERSION
+    assert migrated["release_checks_run"] == 7
+    assert migrated["support_bundle_exports"] == 0
+
+
+def test_redact_text_for_support_share_masks_home_path(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    text = f"config path: {Path.home()}/.battery_alert/config.json"
+
+    redacted = app.redact_text_for_support_share(text)
+
+    assert str(Path.home()) not in redacted
+    assert "~/.battery_alert/config.json" in redacted
 
 
 def test_first_run_onboarding_marks_state_and_is_idempotent(tmp_path, monkeypatch):

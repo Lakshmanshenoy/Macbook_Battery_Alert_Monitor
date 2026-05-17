@@ -22,10 +22,40 @@ import rumps
 
 APP_VERSION = "1.1.0"
 LATEST_RELEASE_API = "https://api.github.com/repos/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/releases/latest"
+CONFIG_SCHEMA_VERSION = 2
+APP_STATE_SCHEMA_VERSION = 2
+SUPPORT_BUNDLE_SCHEMA_VERSION = 2
 
 
 class BatteryAlertApp(rumps.App):
     """Main application class with menu bar integration"""
+
+    @staticmethod
+    def default_settings_payload():
+        """Default persisted settings payload."""
+        return {
+            "config_schema_version": CONFIG_SCHEMA_VERSION,
+            "battery_threshold": 20,
+            "check_interval": 10,
+            "alert_cooldown_seconds": 900,
+            "enable_sound": True,
+            "enable_voice": True,
+            "enable_notifications": True,
+            "auto_launch": False,
+            "enable_update_checks": True,
+        }
+
+    @staticmethod
+    def default_app_state_payload():
+        """Default persisted application state payload."""
+        return {
+            "app_state_schema_version": APP_STATE_SCHEMA_VERSION,
+            "first_launch_completed": False,
+            "onboarding_shown_at": None,
+            "release_checks_run": 0,
+            "support_bundle_exports": 0,
+            "last_release_validation_at": None,
+        }
     
     def __init__(self):
         """Initialize the application"""
@@ -44,16 +74,7 @@ class BatteryAlertApp(rumps.App):
         self.config_dir.mkdir(exist_ok=True)
         
         # Default settings
-        self.settings = {
-            "battery_threshold": 20,
-            "check_interval": 10,
-            "alert_cooldown_seconds": 900,
-            "enable_sound": True,
-            "enable_voice": True,
-            "enable_notifications": True,
-            "auto_launch": False,
-            "enable_update_checks": True
-        }
+        self.settings = self.default_settings_payload()
 
         self._below_threshold_prev = False
         self._last_alert_time = None
@@ -64,13 +85,7 @@ class BatteryAlertApp(rumps.App):
         
         # Alert history
         self.alert_history = []
-        self.app_state = {
-            "first_launch_completed": False,
-            "onboarding_shown_at": None,
-            "release_checks_run": 0,
-            "support_bundle_exports": 0,
-            "last_release_validation_at": None,
-        }
+        self.app_state = self.default_app_state_payload()
         self.logger = None
 
         # Logging should start before other runtime operations.
@@ -116,12 +131,22 @@ class BatteryAlertApp(rumps.App):
                 with open(self.config_file) as f:
                     loaded = json.load(f)
                     if isinstance(loaded, dict):
-                        self.settings.update(loaded)
+                        self.settings = self.migrate_config_payload(loaded)
                 self.validate_settings()
             except Exception as e:
                 print(f"[ERROR] Failed to load config: {e}")
         else:
             self.save_config()
+
+    def migrate_config_payload(self, payload):
+        """Migrate persisted config payloads from older schema versions."""
+        merged = self.default_settings_payload()
+        if not isinstance(payload, dict):
+            return merged
+
+        merged.update(payload)
+        merged["config_schema_version"] = CONFIG_SCHEMA_VERSION
+        return merged
 
     def validate_settings(self):
         """Validate and normalize settings read from disk."""
@@ -152,6 +177,7 @@ class BatteryAlertApp(rumps.App):
         self.settings["enable_notifications"] = bool(self.settings.get("enable_notifications", True))
         self.settings["auto_launch"] = bool(self.settings.get("auto_launch", False))
         self.settings["enable_update_checks"] = bool(self.settings.get("enable_update_checks", True))
+        self.settings["config_schema_version"] = CONFIG_SCHEMA_VERSION
 
     def setup_runtime_logging(self):
         """Create a rotating runtime log for support and diagnostics."""
@@ -264,13 +290,24 @@ class BatteryAlertApp(rumps.App):
             with open(self.app_state_file) as f:
                 loaded_state = json.load(f)
             if isinstance(loaded_state, dict):
-                self.app_state.update(loaded_state)
+                self.app_state = self.migrate_app_state_payload(loaded_state)
         except Exception as e:
             print(f"[ERROR] Failed to load app state: {e}")
+
+    def migrate_app_state_payload(self, payload):
+        """Migrate persisted app-state payloads from older schema versions."""
+        merged = self.default_app_state_payload()
+        if not isinstance(payload, dict):
+            return merged
+
+        merged.update(payload)
+        merged["app_state_schema_version"] = APP_STATE_SCHEMA_VERSION
+        return merged
 
     def save_app_state(self):
         """Persist app state used for onboarding and maintenance metrics."""
         try:
+            self.app_state["app_state_schema_version"] = APP_STATE_SCHEMA_VERSION
             self._write_json_atomic(self.app_state_file, self.app_state)
         except Exception as e:
             print(f"[ERROR] Failed to save app state: {e}")
@@ -278,13 +315,7 @@ class BatteryAlertApp(rumps.App):
     def record_app_state_event(self, key, value=None):
         """Record lightweight app usage metrics for post-release support."""
         if not hasattr(self, "app_state") or not isinstance(self.app_state, dict):
-            self.app_state = {
-                "first_launch_completed": False,
-                "onboarding_shown_at": None,
-                "release_checks_run": 0,
-                "support_bundle_exports": 0,
-                "last_release_validation_at": None,
-            }
+            self.app_state = self.default_app_state_payload()
 
         if key not in self.app_state:
             return
@@ -606,11 +637,7 @@ class BatteryAlertApp(rumps.App):
     def build_usage_summary(self):
         """Return a short summary of onboarding and maintenance metrics."""
         state = self.app_state if hasattr(self, "app_state") and isinstance(self.app_state, dict) else {
-            "first_launch_completed": False,
-            "onboarding_shown_at": None,
-            "release_checks_run": 0,
-            "support_bundle_exports": 0,
-            "last_release_validation_at": None,
+            **self.default_app_state_payload(),
         }
 
         return (
@@ -620,6 +647,12 @@ class BatteryAlertApp(rumps.App):
             f"Support bundles exported: {state.get('support_bundle_exports', 0)}\n"
             f"Last release validation: {state.get('last_release_validation_at') or 'never'}"
         )
+
+    def redact_text_for_support_share(self, text):
+        """Redact obvious local path/user information from shared diagnostics."""
+        if not isinstance(text, str):
+            return ""
+        return text.replace(str(Path.home()), "~")
 
     def build_diagnostics_report(self, battery_info=None):
         """Build a support-friendly diagnostics snapshot."""
@@ -656,9 +689,35 @@ class BatteryAlertApp(rumps.App):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         bundle_path = self.config_dir / f"support_bundle_{timestamp}.zip"
         diagnostics_text = self.build_diagnostics_report()
+        redacted_diagnostics = self.redact_text_for_support_share(diagnostics_text)
+
+        manifest = {
+            "support_bundle_schema_version": SUPPORT_BUNDLE_SCHEMA_VERSION,
+            "app_version": APP_VERSION,
+            "created_at": datetime.now().isoformat(),
+            "config_schema_version": self.settings.get("config_schema_version", CONFIG_SCHEMA_VERSION),
+            "app_state_schema_version": self.app_state.get("app_state_schema_version", APP_STATE_SCHEMA_VERSION),
+            "included_files": [
+                "diagnostics.txt",
+                "safe_share_guide.txt",
+                "manifest.json",
+                "config.json",
+                "alert_history.json",
+                "logs/battery_alert.log",
+            ],
+        }
+
+        safe_share_guide = (
+            "Support Bundle Safe-Share Guide\n"
+            "- Review diagnostics.txt before sharing externally.\n"
+            "- Redacted diagnostics replace your home directory with '~'.\n"
+            "- Remove files you do not want to share before sending.\n"
+        )
 
         with zipfile.ZipFile(bundle_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-            zf.writestr("diagnostics.txt", diagnostics_text)
+            zf.writestr("diagnostics.txt", redacted_diagnostics)
+            zf.writestr("safe_share_guide.txt", safe_share_guide)
+            zf.writestr("manifest.json", json.dumps(manifest, indent=2))
 
             if self.config_file.exists():
                 zf.write(self.config_file, arcname="config.json")
@@ -1048,7 +1107,11 @@ Alert Cooldown: {self.settings['alert_cooldown_seconds']} seconds"""
             self.record_app_state_event("support_bundle_exports")
             self.log_runtime(f"Support bundle exported to {bundle_path}")
             subprocess.run(["open", "-R", str(bundle_path)], check=False)
-            self.show_feedback("Support Bundle Exported", f"Support bundle created at:\n{bundle_path}")
+            self.show_feedback(
+                "Support Bundle Exported",
+                f"Support bundle created at:\n{bundle_path}\n\n"
+                "Tip: Review safe_share_guide.txt in the bundle before sharing."
+            )
         except Exception as e:
             self.log_runtime(f"Failed to export support bundle: {e}", level="warning")
             self.show_feedback("Error", f"Failed to export support bundle: {e}")

@@ -177,6 +177,13 @@ Add these repository secrets to enable notarization:
 
 If these secrets are not set, the workflow still produces unsigned release artifacts.
 
+## Reliability Hardening (Phase 6)
+
+- Config and app-state payloads now include schema versions and migration defaults.
+- Support bundles include `manifest.json` and `safe_share_guide.txt`.
+- Diagnostics in support bundles redact your home-directory path (`/Users/...` -> `~`).
+- The release workflow supports `workflow_dispatch` dry runs that build and verify artifacts without publishing a GitHub release.
+
 ## System Requirements
 
 - **OS:** macOS 10.13 or later
