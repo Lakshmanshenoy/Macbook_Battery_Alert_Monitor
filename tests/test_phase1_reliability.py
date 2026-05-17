@@ -55,6 +55,7 @@ def _new_app_for_unit_tests(tmp_path):
     app.pid_file = Path(tmp_path) / "app.pid"
     app.runtime_log_file = Path(tmp_path) / "logs" / "battery_alert.log"
     app.update_state_file = Path(tmp_path) / "update_state.json"
+    app.app_state_file = Path(tmp_path) / "app_state.json"
     app.settings = {
         "battery_threshold": 20,
         "check_interval": 10,
@@ -66,10 +67,18 @@ def _new_app_for_unit_tests(tmp_path):
         "enable_update_checks": True,
     }
     app.alert_history = []
+    app.app_state = {
+        "first_launch_completed": False,
+        "onboarding_shown_at": None,
+        "release_checks_run": 0,
+        "support_bundle_exports": 0,
+        "last_release_validation_at": None,
+    }
     app._below_threshold_prev = False
     app._last_alert_time = None
     app._last_power_state = None
     app.logger = None
+    app._release_validation_in_progress = False
     return app
 
 
@@ -236,6 +245,70 @@ def test_create_support_bundle_archive_contains_core_files(tmp_path):
     assert "config.json" in names
     assert "alert_history.json" in names
     assert "logs/battery_alert.log" in names
+
+
+def test_first_run_onboarding_marks_state_and_is_idempotent(tmp_path, monkeypatch):
+    app = _new_app_for_unit_tests(tmp_path)
+    shown = []
+
+    monkeypatch.setattr(app, "show_non_blocking_feedback", lambda title, message: shown.append((title, message)))
+
+    app.maybe_show_first_run_onboarding()
+    app.maybe_show_first_run_onboarding()
+
+    assert shown == [
+        (
+            "Welcome",
+            "Battery Alert is ready. Open Getting Started for a short tour of the main settings."
+        )
+    ]
+    assert app.app_state["first_launch_completed"] is True
+    assert app.app_state["onboarding_shown_at"] is not None
+    assert app.app_state_file.exists()
+
+
+def test_run_release_validation_now_runs_in_background(tmp_path, monkeypatch):
+    app = _new_app_for_unit_tests(tmp_path)
+    shown = []
+    commands = []
+    started = []
+
+    monkeypatch.setattr(app, "show_non_blocking_feedback", lambda title, message: shown.append((title, message)))
+    monkeypatch.setattr(app, "build_release_validation_command", lambda: ["python3", "scripts/release_smoke_test.py"])
+    monkeypatch.setattr(
+        battery_alert_module.subprocess,
+        "run",
+        lambda command, capture_output, text: commands.append(command) or types.SimpleNamespace(returncode=0, stdout="ok", stderr="")
+    )
+
+    class FakeThread:
+        def __init__(self, target, daemon=False):
+            self.target = target
+            self.daemon = daemon
+
+        def start(self):
+            started.append(True)
+            self.target()
+
+    monkeypatch.setattr(battery_alert_module.threading, "Thread", FakeThread)
+
+    app.run_release_validation_now(None)
+
+    assert commands == [["python3", "scripts/release_smoke_test.py"]]
+    assert started == [True]
+    assert shown[0] == ("Release Check", "Running the release smoke test in the background...")
+    assert shown[-1] == ("Release Check Passed", "Release smoke test completed successfully.")
+    assert app.app_state["release_checks_run"] == 1
+    assert app.app_state["last_release_validation_at"] is not None
+
+
+def test_build_release_validation_command_points_to_script(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+
+    command = app.build_release_validation_command()
+
+    assert command[0] == sys.executable
+    assert command[1].endswith("scripts/release_smoke_test.py")
 
 
 def test_check_for_updates_manual_empty_latest_shows_feedback(tmp_path, monkeypatch):

@@ -84,6 +84,8 @@ The built app will be in `dist/Battery Alert.app`
 2. The app will appear in your menu bar (🔋 icon)
 3. Click the icon to access the menu
 
+On first launch, the app shows a short onboarding tip and keeps a persistent record so it only appears once.
+
 ### Menu Options
 
 - **Battery Threshold** - Set when to get alerts
@@ -100,6 +102,7 @@ The built app will be in `dist/Battery Alert.app`
 - **Copy Diagnostics** - Copy support-friendly diagnostics to the clipboard
 - **Export Support Bundle** - Create a zipped bundle for issue reporting
 - **Check for Updates** - Check latest release availability
+- **Run Release Check** - Run the release smoke test in the background
 - **Open Config Folder** - Open the settings folder in Finder
 - **About** - App information
 - **Quit** - Close the application
@@ -151,6 +154,12 @@ Settings are stored in `~/.battery_alert/` directory:
 - `support_bundle_*.zip` - Exported troubleshooting bundles
 
 Support actions in the menu can also copy a diagnostics snapshot and open this folder directly.
+
+## Maintenance
+
+- Use **Getting Started** if you want to reopen the onboarding tips.
+- Use **Run Release Check** to run the release smoke test from inside the app.
+- The release smoke test script is still available directly at `python3 scripts/release_smoke_test.py`.
 
 ## Release Security (Phase 3)
 

@@ -72,6 +72,7 @@ def new_app():
     app.pid_file = temp_dir / "app.pid"
     app.runtime_log_file = temp_dir / "logs" / "battery_alert.log"
     app.update_state_file = temp_dir / "update_state.json"
+    app.app_state_file = temp_dir / "app_state.json"
     app.settings = {
         "battery_threshold": 20,
         "check_interval": 10,
@@ -83,10 +84,18 @@ def new_app():
         "enable_update_checks": True,
     }
     app.alert_history = []
+    app.app_state = {
+        "first_launch_completed": False,
+        "onboarding_shown_at": None,
+        "release_checks_run": 0,
+        "support_bundle_exports": 0,
+        "last_release_validation_at": None,
+    }
     app._below_threshold_prev = False
     app._last_alert_time = None
     app._last_power_state = None
     app._update_check_in_progress = False
+    app._release_validation_in_progress = False
     app.logger = None
     return module, app
 
