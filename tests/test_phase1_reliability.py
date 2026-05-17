@@ -281,7 +281,6 @@ def test_create_support_bundle_archive_includes_latest_crash_report(tmp_path):
     assert "person@example.com" not in crash_text
 
 
-<<<<<<< HEAD
 def test_create_support_bundle_archive_diagnostics_preset_is_minimal(tmp_path):
     app = _new_app_for_unit_tests(tmp_path)
     app.config_file.write_text('{"battery_threshold": 20}')
