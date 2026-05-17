@@ -43,5 +43,6 @@ Use this checklist before cutting a tagged release for Battery Alert Monitor.
 ## Support Readiness
 
 - Export a support bundle and verify it contains diagnostics, config, alert history, logs, `manifest.json`, and `safe_share_guide.txt`.
+- If runtime log rotation occurred, verify the bundle includes `logs/battery_alert.log.*` files.
 - If a crash report exists, verify the bundle includes `crash_reports/latest_crash_report.json`.
 - Confirm the runtime log rotates under `~/.battery_alert/logs/`.

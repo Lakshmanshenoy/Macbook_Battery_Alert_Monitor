@@ -7,8 +7,9 @@ Use this guide when a user shares diagnostics or a support bundle.
 1. Read `diagnostics.txt` first for current settings, battery state, update status, and maintenance history.
 2. Check `manifest.json` to confirm bundle schema version and included files.
 3. Review `logs/battery_alert.log` for runtime warnings, update-check failures, or power-source transitions.
-4. Review `crash_reports/latest_crash_report.json` when present for uncaught exception details.
-5. If only metadata is needed, request a diagnostics-only support export to minimize shared files.
+4. If present, review rotated logs (`logs/battery_alert.log.*`) for longer incident timelines.
+5. Review `crash_reports/latest_crash_report.json` when present for uncaught exception details.
+6. If only metadata is needed, request a diagnostics-only support export to minimize shared files.
 
 ## Common patterns
 
