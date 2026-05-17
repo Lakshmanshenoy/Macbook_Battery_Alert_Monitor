@@ -1,3 +1,4 @@
+import importlib
 from datetime import datetime, timedelta
 from pathlib import Path
 import json
@@ -16,9 +17,23 @@ def _install_rumps_stub():
         def run(self):
             return None
 
+    class DummyMenuItem:
+        def __init__(self, title, callback=None):
+            self.title = title
+            self.callback = callback
+
+    class DummyWindow:
+        next_response = types.SimpleNamespace(clicked=False, text="")
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def run(self):
+            return DummyWindow.next_response
+
     rumps_stub.App = DummyApp
-    rumps_stub.MenuItem = lambda *args, **kwargs: None
-    rumps_stub.Window = lambda *args, **kwargs: None
+    rumps_stub.MenuItem = DummyMenuItem
+    rumps_stub.Window = DummyWindow
     rumps_stub.alert = lambda *args, **kwargs: None
     rumps_stub.quit_application = lambda: None
 
@@ -26,7 +41,9 @@ def _install_rumps_stub():
 
 
 _install_rumps_stub()
-from battery_alert_gui import BatteryAlertApp  # noqa: E402
+battery_alert_module = importlib.import_module("battery_alert_gui")
+battery_alert_module = importlib.reload(battery_alert_module)
+BatteryAlertApp = battery_alert_module.BatteryAlertApp
 
 
 def _new_app_for_unit_tests(tmp_path):
@@ -107,3 +124,68 @@ def test_ensure_single_instance_cleans_stale_pid(tmp_path, monkeypatch):
     app.ensure_single_instance()
 
     assert not app.pid_file.exists()
+
+
+def test_format_settings_summary_includes_phase2_fields(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.settings["alert_cooldown_seconds"] = 120
+    app.settings["enable_voice"] = False
+    app.settings["auto_launch"] = True
+
+    summary = app.format_settings_summary()
+
+    assert "Battery threshold: 20%" in summary
+    assert "Alert cooldown: 120 seconds" in summary
+    assert "Alert modes: sound, notifications" in summary
+    assert "Launch at startup: enabled" in summary
+
+
+def test_build_diagnostics_report_includes_support_context(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.alert_history.append({"time": "2026-01-01 10:00:00", "battery_level": 19})
+
+    report = app.build_diagnostics_report(
+        {"level": 18, "is_charging": False, "is_discharging": True}
+    )
+
+    assert "Battery Alert Diagnostics" in report
+    assert "battery_level: 18" in report
+    assert "alert_history_entries: 1" in report
+    assert "last_alert: 2026-01-01 10:00:00" in report
+    assert f"config_file: {app.config_file}" in report
+
+
+def test_prompt_for_integer_setting_updates_value_and_persists(tmp_path, monkeypatch):
+    app = _new_app_for_unit_tests(tmp_path)
+    alert_messages = []
+
+    battery_alert_module.rumps.Window.next_response = types.SimpleNamespace(clicked=True, text="45")
+    monkeypatch.setattr(
+        battery_alert_module.rumps,
+        "alert",
+        lambda message, title=None: alert_messages.append((message, title))
+    )
+
+    changed = app.prompt_for_integer_setting(
+        "battery_threshold",
+        "Battery Threshold",
+        "Enter new threshold (1-100):",
+        1,
+        100,
+        "Battery threshold set to {value}%"
+    )
+
+    assert changed is True
+    assert app.settings["battery_threshold"] == 45
+    assert app.config_file.exists()
+    assert alert_messages == [("Battery threshold set to 45%", "Success")]
+
+
+def test_update_boolean_setting_updates_label_and_value(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    sender = types.SimpleNamespace(title="")
+
+    app.update_boolean_setting("enable_sound", sender, "🔊 Sound Alerts")
+
+    assert app.settings["enable_sound"] is False
+    assert sender.title == "🔊 Sound Alerts: OFF"

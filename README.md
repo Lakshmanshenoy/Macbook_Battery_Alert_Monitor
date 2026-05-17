@@ -18,6 +18,7 @@ A professional, user-friendly battery monitoring application for macOS. Get aler
 ⚙️ **Customizable Settings**
 - Adjustable battery threshold (1-100%)
 - Configurable check interval
+- Configurable alert cooldown
 - Toggle sound, voice, and notifications independently
 - Auto-launch at system startup
 - Configuration automatically saved
@@ -26,6 +27,8 @@ A professional, user-friendly battery monitoring application for macOS. Get aler
 - Runs in background after launching
 - Real-time battery percentage in menu bar
 - Detailed alert history
+- Built-in diagnostics copy and config-folder access
+- Manual test alert for validating notifications
 - Lightweight and efficient
 - No additional dependencies for end-users
 
@@ -82,12 +85,17 @@ The built app will be in `dist/Battery Alert.app`
 
 - **Battery Threshold** - Set when to get alerts
 - **Check Interval** - Configure how often to check battery
+- **Alert Cooldown** - Control how often repeated alerts can fire
+- **Show Preferences** - Review all active settings in one place
 - **Sound Alerts** - Toggle sound notifications
 - **Voice Alerts** - Toggle voice notifications
 - **Notifications** - Toggle macOS notifications
 - **Launch at Startup** - Enable auto-start
 - **Check Status** - View current battery information
+- **Test Alert Now** - Send a manual test notification
 - **View Alert History** - See recent low battery alerts
+- **Copy Diagnostics** - Copy support-friendly diagnostics to the clipboard
+- **Open Config Folder** - Open the settings folder in Finder
 - **About** - App information
 - **Quit** - Close the application
 
@@ -105,6 +113,12 @@ The built app will be in `dist/Battery Alert.app`
 - Adjustable: 10-3600 seconds (10s to 1 hour)
 - Lower = more responsive, slightly more battery usage
 - Higher = saves battery, less responsive
+
+**Alert Cooldown**
+- Minimum time between repeated low-battery alerts while still below threshold
+- Default: **900 seconds**
+- Adjustable: 30-86400 seconds
+- Helps reduce alert spam during extended low-battery sessions
 
 **Alert Types**
 - 🔊 Sound Alerts - Play a sound when alert triggers
@@ -128,6 +142,8 @@ Settings are stored in `~/.battery_alert/` directory:
 - `config.json` - Your preferences
 - `alert_history.json` - Log of recent alerts
 - `app.pid` - Process ID file
+
+Support actions in the menu can also copy a diagnostics snapshot and open this folder directly.
 
 ## System Requirements
 
