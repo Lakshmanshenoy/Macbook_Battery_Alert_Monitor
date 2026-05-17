@@ -9,6 +9,7 @@ import json
 import threading
 import subprocess
 import sys
+import platform
 from datetime import datetime
 from pathlib import Path
 import rumps
@@ -358,8 +359,10 @@ class BatteryAlertApp(rumps.App):
     def setup_menu(self):
         """Setup the menu bar items"""
         self.menu = [
+            rumps.MenuItem("Show Preferences", self.show_preferences),
             rumps.MenuItem("Battery Threshold", self.set_threshold),
             rumps.MenuItem("Check Interval", self.set_interval),
+            rumps.MenuItem("Alert Cooldown", self.set_cooldown),
             None,
             rumps.MenuItem("🔊 Sound Alerts: " + ("ON" if self.settings["enable_sound"] else "OFF"), 
                           self.toggle_sound),
@@ -372,11 +375,21 @@ class BatteryAlertApp(rumps.App):
                           self.toggle_autolaunch),
             None,
             rumps.MenuItem("Check Status", self.check_status),
+            rumps.MenuItem("Test Alert Now", self.test_alert),
             rumps.MenuItem("View Alert History", self.view_alert_history),
+            rumps.MenuItem("Copy Diagnostics", self.copy_diagnostics),
+            rumps.MenuItem("Open Config Folder", self.open_config_folder),
             None,
             rumps.MenuItem("About", self.show_about),
             rumps.MenuItem("Quit", self.quit_app)
         ]
+
+    def show_preferences(self, _):
+        """Show a summary of current user preferences."""
+        try:
+            rumps.alert("Preferences", self.format_settings_summary())
+        except Exception as e:
+            print(f"[ERROR] Error in show_preferences: {e}")
     
     def update_menu_labels(self):
         """Update menu item labels to reflect current settings"""
@@ -385,46 +398,107 @@ class BatteryAlertApp(rumps.App):
             self.setup_menu()
         except Exception as e:
             print(f"[ERROR] Failed to update menu: {e}")
+
+    def format_settings_summary(self):
+        """Return a human-readable summary of the active preferences."""
+        alert_modes = []
+        if self.settings["enable_sound"]:
+            alert_modes.append("sound")
+        if self.settings["enable_voice"]:
+            alert_modes.append("voice")
+        if self.settings["enable_notifications"]:
+            alert_modes.append("notifications")
+
+        modes_text = ", ".join(alert_modes) if alert_modes else "none"
+        autolaunch_text = "enabled" if self.settings["auto_launch"] else "disabled"
+
+        return (
+            f"Battery threshold: {self.settings['battery_threshold']}%\n"
+            f"Check interval: {self.settings['check_interval']} seconds\n"
+            f"Alert cooldown: {self.settings['alert_cooldown_seconds']} seconds\n"
+            f"Alert modes: {modes_text}\n"
+            f"Launch at startup: {autolaunch_text}"
+        )
+
+    def build_diagnostics_report(self, battery_info=None):
+        """Build a support-friendly diagnostics snapshot."""
+        battery_info = battery_info or self.get_battery_info()
+        last_alert = self.alert_history[-1]["time"] if self.alert_history else "never"
+
+        return (
+            "Battery Alert Diagnostics\n"
+            f"timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"python: {sys.version.split()[0]}\n"
+            f"platform: {platform.platform()}\n"
+            f"battery_level: {battery_info['level']}\n"
+            f"charging: {battery_info['is_charging']}\n"
+            f"discharging: {battery_info['is_discharging']}\n"
+            f"threshold: {self.settings['battery_threshold']}\n"
+            f"check_interval: {self.settings['check_interval']}\n"
+            f"alert_cooldown_seconds: {self.settings['alert_cooldown_seconds']}\n"
+            f"sound_enabled: {self.settings['enable_sound']}\n"
+            f"voice_enabled: {self.settings['enable_voice']}\n"
+            f"notifications_enabled: {self.settings['enable_notifications']}\n"
+            f"auto_launch: {self.settings['auto_launch']}\n"
+            f"alert_history_entries: {len(self.alert_history)}\n"
+            f"last_alert: {last_alert}\n"
+            f"config_file: {self.config_file}\n"
+            f"log_file: {self.log_file}"
+        )
+
+    def update_boolean_setting(self, key, sender, label, enabled_text="ON", disabled_text="OFF"):
+        """Toggle a boolean setting and update the menu label."""
+        self.settings[key] = not self.settings[key]
+        self.save_config()
+        sender.title = f"{label}: {enabled_text if self.settings[key] else disabled_text}"
+
+    def prompt_for_integer_setting(self, key, title, prompt, minimum, maximum, success_message):
+        """Prompt the user to update a numeric setting."""
+        current = self.settings[key]
+        window = rumps.Window(
+            f"Current value: {current}\n\n{prompt}",
+            title=title,
+            default_text=str(current),
+            ok="OK",
+            cancel="Cancel"
+        )
+        response = window.run()
+
+        if response.clicked is False:
+            return False
+
+        if not response.text:
+            return False
+
+        try:
+            value = int(response.text)
+        except ValueError:
+            rumps.alert("Please enter a valid number", title="Error")
+            return False
+
+        if not minimum <= value <= maximum:
+            rumps.alert(
+                f"Please enter a number between {minimum}-{maximum}",
+                title="Error"
+            )
+            return False
+
+        self.settings[key] = value
+        self.save_config()
+        rumps.alert(success_message.format(value=value), title="Success")
+        return True
     
     def set_threshold(self, _):
         """Set battery threshold using rumps dialog"""
         try:
-            current = self.settings["battery_threshold"]
-            
-            # Use simpledialog-like behavior with rumps
-            window = rumps.Window(
-                f"Current threshold: {current}%\n\nEnter new threshold (1-100):",
-                title="Battery Threshold",
-                default_text=str(current),
-                ok="OK",
-                cancel="Cancel"
+            self.prompt_for_integer_setting(
+                "battery_threshold",
+                "Battery Threshold",
+                "Enter new threshold (1-100):",
+                1,
+                100,
+                "Battery threshold set to {value}%"
             )
-            response = window.run()
-            
-            # Check if Cancel was clicked
-            if response.clicked == False:
-                return
-            
-            if response.text:
-                try:
-                    threshold = int(response.text)
-                    if 1 <= threshold <= 100:
-                        self.settings["battery_threshold"] = threshold
-                        self.save_config()
-                        rumps.alert(
-                            f"Battery threshold set to {threshold}%",
-                            title="Success"
-                        )
-                    else:
-                        rumps.alert(
-                            "Please enter a number between 1-100",
-                            title="Error"
-                        )
-                except ValueError:
-                    rumps.alert(
-                        "Please enter a valid number",
-                        title="Error"
-                    )
         except Exception as e:
             print(f"[ERROR] Error in set_threshold: {e}")
             rumps.alert(f"Error: {e}", title="Error")
@@ -432,52 +506,37 @@ class BatteryAlertApp(rumps.App):
     def set_interval(self, _):
         """Set check interval using rumps dialog"""
         try:
-            current = self.settings["check_interval"]
-            
-            # Use simpledialog-like behavior with rumps
-            window = rumps.Window(
-                f"Current interval: {current}s\n\nEnter new interval (10-3600 seconds):",
-                title="Check Interval",
-                default_text=str(current),
-                ok="OK",
-                cancel="Cancel"
+            self.prompt_for_integer_setting(
+                "check_interval",
+                "Check Interval",
+                "Enter new interval (10-3600 seconds):",
+                10,
+                3600,
+                "Check interval set to {value} seconds"
             )
-            response = window.run()
-            
-            # Check if Cancel was clicked
-            if response.clicked == False:
-                return
-            
-            if response.text:
-                try:
-                    interval = int(response.text)
-                    if 10 <= interval <= 3600:
-                        self.settings["check_interval"] = interval
-                        self.save_config()
-                        rumps.alert(
-                            f"Check interval set to {interval} seconds",
-                            title="Success"
-                        )
-                    else:
-                        rumps.alert(
-                            "Please enter a number between 10-3600",
-                            title="Error"
-                        )
-                except ValueError:
-                    rumps.alert(
-                        "Please enter a valid number",
-                        title="Error"
-                    )
         except Exception as e:
             print(f"[ERROR] Error in set_interval: {e}")
+            rumps.alert(f"Error: {e}", title="Error")
+
+    def set_cooldown(self, _):
+        """Set alert cooldown using rumps dialog."""
+        try:
+            self.prompt_for_integer_setting(
+                "alert_cooldown_seconds",
+                "Alert Cooldown",
+                "Enter alert cooldown (30-86400 seconds):",
+                30,
+                86400,
+                "Alert cooldown set to {value} seconds"
+            )
+        except Exception as e:
+            print(f"[ERROR] Error in set_cooldown: {e}")
             rumps.alert(f"Error: {e}", title="Error")
     
     def toggle_sound(self, sender):
         """Toggle sound alerts"""
         try:
-            self.settings["enable_sound"] = not self.settings["enable_sound"]
-            self.save_config()
-            sender.title = "🔊 Sound Alerts: " + ("ON" if self.settings["enable_sound"] else "OFF")
+            self.update_boolean_setting("enable_sound", sender, "🔊 Sound Alerts")
             print(f"[SETTINGS] Sound alerts: {'ON' if self.settings['enable_sound'] else 'OFF'}")
         except Exception as e:
             print(f"[ERROR] Error toggling sound: {e}")
@@ -485,9 +544,7 @@ class BatteryAlertApp(rumps.App):
     def toggle_voice(self, sender):
         """Toggle voice alerts"""
         try:
-            self.settings["enable_voice"] = not self.settings["enable_voice"]
-            self.save_config()
-            sender.title = "🎤 Voice Alerts: " + ("ON" if self.settings["enable_voice"] else "OFF")
+            self.update_boolean_setting("enable_voice", sender, "🎤 Voice Alerts")
             print(f"[SETTINGS] Voice alerts: {'ON' if self.settings['enable_voice'] else 'OFF'}")
         except Exception as e:
             print(f"[ERROR] Error toggling voice: {e}")
@@ -495,9 +552,7 @@ class BatteryAlertApp(rumps.App):
     def toggle_notifications(self, sender):
         """Toggle notifications"""
         try:
-            self.settings["enable_notifications"] = not self.settings["enable_notifications"]
-            self.save_config()
-            sender.title = "🔔 Notifications: " + ("ON" if self.settings["enable_notifications"] else "OFF")
+            self.update_boolean_setting("enable_notifications", sender, "🔔 Notifications")
             print(f"[SETTINGS] Notifications: {'ON' if self.settings['enable_notifications'] else 'OFF'}")
         except Exception as e:
             print(f"[ERROR] Error toggling notifications: {e}")
@@ -505,10 +560,8 @@ class BatteryAlertApp(rumps.App):
     def toggle_autolaunch(self, sender):
         """Toggle launch at startup"""
         try:
-            self.settings["auto_launch"] = not self.settings["auto_launch"]
-            self.save_config()
+            self.update_boolean_setting("auto_launch", sender, "🚀 Launch at Startup")
             self.setup_autolaunch()
-            sender.title = "🚀 Launch at Startup: " + ("ON" if self.settings["auto_launch"] else "OFF")
             status = "enabled" if self.settings["auto_launch"] else "disabled"
             print(f"[SETTINGS] Auto-launch: {status}")
             rumps.alert(f"Launch at Startup {status.capitalize()}", title="Success")
@@ -582,11 +635,26 @@ class BatteryAlertApp(rumps.App):
             
             message = f"""Battery Level: {level}%
 Status: {charging}
-Threshold: {self.settings['battery_threshold']}%"""
+Threshold: {self.settings['battery_threshold']}%
+Check Interval: {self.settings['check_interval']} seconds
+Alert Cooldown: {self.settings['alert_cooldown_seconds']} seconds"""
             
             rumps.alert("Battery Status", message)
         except Exception as e:
             print(f"[ERROR] Error in check_status: {e}")
+
+    def test_alert(self, _):
+        """Trigger a manual test alert using the current battery level."""
+        try:
+            battery_level = self.get_battery_info()["level"]
+            self.trigger_alert(battery_level)
+            rumps.alert(
+                "Test alert sent using your current battery status.",
+                title="Test Alert"
+            )
+        except Exception as e:
+            print(f"[ERROR] Error in test_alert: {e}")
+            rumps.alert(f"Error: {e}", title="Error")
     
     def view_alert_history(self, _):
         """View alert history"""
@@ -601,6 +669,27 @@ Threshold: {self.settings['battery_threshold']}%"""
             rumps.alert("Alert History", history_text)
         except Exception as e:
             print(f"[ERROR] Error in view_alert_history: {e}")
+
+    def copy_diagnostics(self, _):
+        """Copy diagnostics information to the clipboard."""
+        try:
+            diagnostics = self.build_diagnostics_report()
+            subprocess.run(["pbcopy"], input=diagnostics, text=True, check=True)
+            rumps.alert(
+                "Diagnostics copied to the clipboard.",
+                title="Diagnostics"
+            )
+        except Exception as e:
+            print(f"[ERROR] Error in copy_diagnostics: {e}")
+            rumps.alert(f"Error: {e}", title="Error")
+
+    def open_config_folder(self, _):
+        """Open the configuration directory in Finder."""
+        try:
+            subprocess.run(["open", str(self.config_dir)], check=True)
+        except Exception as e:
+            print(f"[ERROR] Error in open_config_folder: {e}")
+            rumps.alert(f"Error: {e}", title="Error")
     
     def show_about(self, _):
         """Show about dialog"""
