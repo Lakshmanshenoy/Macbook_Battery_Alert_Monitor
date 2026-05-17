@@ -241,6 +241,13 @@ If these secrets are not set, the workflow still produces unsigned release artif
 - `scripts/checks.sh` runs fixer + syntax validation + tests + smoke checks + synthetic artifact verification.
 - `scripts/fix_indentation_and_conflicts.py` is scoped to project sources (`battery_alert_gui.py`, `scripts/`, `tests/`) to avoid unsafe environment rewrites.
 
+## Runtime Resilience and Recovery (Phase 11)
+
+- Update-check throttle state now uses a versioned persisted payload with migration and corrupted-file recovery.
+- Support bundle export safely includes rotated runtime logs (`battery_alert.log.*`) when present.
+- Version/status/diagnostics summaries are de-duplicated to improve support signal quality.
+- Runtime resilience tests now cover update-state recovery and rotated-log bundling behavior.
+
 ## System Requirements
 
 - **OS:** macOS 10.13 or later

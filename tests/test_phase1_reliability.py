@@ -261,6 +261,24 @@ def test_create_support_bundle_archive_contains_core_files(tmp_path):
     assert "logs/battery_alert.log" in names
 
 
+def test_create_support_bundle_archive_includes_rotated_logs(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.config_file.write_text('{"battery_threshold": 20}')
+    app.log_file.write_text('[]')
+    app.runtime_log_file.parent.mkdir(parents=True, exist_ok=True)
+    app.runtime_log_file.write_text('runtime log line')
+    (app.runtime_log_file.parent / "battery_alert.log.1").write_text("old log 1", encoding="utf-8")
+    (app.runtime_log_file.parent / "battery_alert.log.2").write_text("old log 2", encoding="utf-8")
+
+    bundle_path = app.create_support_bundle_archive()
+
+    with zipfile.ZipFile(bundle_path, "r") as zf:
+        names = set(zf.namelist())
+
+    assert "logs/battery_alert.log.1" in names
+    assert "logs/battery_alert.log.2" in names
+
+
 def test_create_support_bundle_archive_includes_latest_crash_report(tmp_path):
     app = _new_app_for_unit_tests(tmp_path)
     app.config_file.write_text('{"battery_threshold": 20}')
@@ -366,6 +384,17 @@ def test_build_status_summary_includes_power_and_support_context(tmp_path):
     assert "Support bundles exported: 2" in summary
     assert "Last update result: update_available" in summary
     assert "Runtime degraded: no" in summary
+    assert summary.count("Last crash report:") == 1
+
+
+def test_build_diagnostics_report_has_single_update_channel_line(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+
+    report = app.build_diagnostics_report(
+        {"level": 18, "is_charging": False, "is_discharging": True}
+    )
+
+    assert report.count("update_channel:") == 1
 
 
 def test_check_runtime_dependencies_marks_degraded_when_missing(tmp_path, monkeypatch):
@@ -436,6 +465,27 @@ def test_load_app_state_migrates_pre_schema_payload(tmp_path):
     assert app.app_state["app_state_schema_version"] == battery_alert_module.APP_STATE_SCHEMA_VERSION
     assert app.app_state["last_update_check_at"] is None
     assert app.app_state["last_update_status"] is None
+
+
+def test_load_update_state_migrates_pre_schema_payload(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.update_state_file.write_text(json.dumps({"last_checked": "2026-01-01T12:00:00"}, indent=2))
+
+    app.load_update_state()
+
+    assert app.update_state["update_state_schema_version"] == battery_alert_module.UPDATE_STATE_SCHEMA_VERSION
+    assert app.update_state["last_checked"] == "2026-01-01T12:00:00"
+
+
+def test_load_update_state_recovers_corrupted_json(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.update_state_file.write_text("{broken")
+
+    app.load_update_state()
+
+    assert app.update_state["update_state_schema_version"] == battery_alert_module.UPDATE_STATE_SCHEMA_VERSION
+    quarantined = list(app.config_dir.glob("update_state.json.corrupt.*"))
+    assert quarantined
 
 
 def test_load_config_recovers_corrupted_json(tmp_path):

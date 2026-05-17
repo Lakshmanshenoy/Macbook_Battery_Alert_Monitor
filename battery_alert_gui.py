@@ -32,6 +32,7 @@ CONFIG_SCHEMA_VERSION = 2
 APP_STATE_SCHEMA_VERSION = 4
 SUPPORT_BUNDLE_SCHEMA_VERSION = 4
 CRASH_REPORT_SCHEMA_VERSION = 1
+UPDATE_STATE_SCHEMA_VERSION = 1
 REQUIRED_RUNTIME_TOOLS = {
     "pmset": "battery monitoring",
     "osascript": "notifications",
@@ -76,6 +77,14 @@ class BatteryAlertApp(rumps.App):
             "last_crash_report_at": None,
             "last_release_validation_at": None,
         }
+
+    @staticmethod
+    def default_update_state_payload():
+        """Default persisted update-state payload."""
+        return {
+            "update_state_schema_version": UPDATE_STATE_SCHEMA_VERSION,
+            "last_checked": None,
+        }
     
     def __init__(self):
         """Initialize the application"""
@@ -115,6 +124,7 @@ class BatteryAlertApp(rumps.App):
         # Alert history
         self.alert_history = []
         self.app_state = self.default_app_state_payload()
+        self.update_state = self.default_update_state_payload()
         self.logger = None
 
         # Logging should start before other runtime operations.
@@ -126,6 +136,7 @@ class BatteryAlertApp(rumps.App):
         self.load_config()
         self.load_alert_history()
         self.load_app_state()
+        self.load_update_state()
 
         # Ensure single-instance behavior before writing our PID
         self.ensure_single_instance()
@@ -470,6 +481,47 @@ class BatteryAlertApp(rumps.App):
             self._write_json_atomic(self.app_state_file, self.app_state)
         except Exception as e:
             print(f"[ERROR] Failed to save app state: {e}")
+
+    def migrate_update_state_payload(self, payload):
+        """Migrate persisted update-state payloads from older schema versions."""
+        merged = self.default_update_state_payload()
+        if not isinstance(payload, dict):
+            return merged
+
+        merged.update(payload)
+        merged["update_state_schema_version"] = UPDATE_STATE_SCHEMA_VERSION
+        return merged
+
+    def load_update_state(self):
+        """Load update throttle state used by automatic checks."""
+        if not self.update_state_file.exists():
+            self.save_update_state()
+            return
+
+        try:
+            with open(self.update_state_file) as f:
+                loaded_state = json.load(f)
+            if isinstance(loaded_state, dict):
+                self.update_state = self.migrate_update_state_payload(loaded_state)
+            else:
+                self.update_state = self.default_update_state_payload()
+                self.save_update_state()
+        except Exception as e:
+            print(f"[ERROR] Failed to load update state: {e}")
+            self.update_state = self.default_update_state_payload()
+            self.recover_corrupted_json_file(
+                self.update_state_file,
+                self.update_state,
+                "update state"
+            )
+
+    def save_update_state(self):
+        """Persist update throttle state."""
+        try:
+            self.update_state["update_state_schema_version"] = UPDATE_STATE_SCHEMA_VERSION
+            self._write_json_atomic(self.update_state_file, self.update_state)
+        except Exception as e:
+            print(f"[ERROR] Failed to save update state: {e}")
 
     def record_app_state_event(self, key, value=None):
         """Record lightweight app usage metrics for post-release support."""
@@ -838,10 +890,6 @@ class BatteryAlertApp(rumps.App):
             f"Last result: {state.get('last_update_status') or 'unknown'}\n"
             f"Latest known release: {state.get('last_known_release_version') or 'unknown'}\n"
             f"Latest known release URL: {state.get('last_known_release_url') or 'unknown'}"
-            f"Update channel: {UPDATE_CHANNEL}\n"
-            f"Last checked: {state.get('last_update_check_at') or 'never'}\n"
-            f"Last result: {state.get('last_update_status') or 'unknown'}\n"
-            f"Latest known release: {state.get('last_known_release_version') or 'unknown'}"
         )
 
     def build_status_summary(self, battery_info=None):
@@ -864,7 +912,6 @@ class BatteryAlertApp(rumps.App):
             f"Last crash report: {self.app_state.get('last_crash_report_at') or 'never'}\n"
             f"Runtime degraded: {'yes' if self.runtime_health.get('is_degraded') else 'no'}\n"
             f"Missing tools: {', '.join(self.runtime_health.get('missing_tools', [])) or 'none'}"
-            f"Last crash report: {self.app_state.get('last_crash_report_at') or 'never'}"
         )
 
     def redact_text_for_support_share(self, text):
@@ -913,13 +960,12 @@ class BatteryAlertApp(rumps.App):
             f"update_channel: {self.settings.get('update_channel', UPDATE_CHANNEL)}\n"
             f"runtime_degraded: {self.runtime_health.get('is_degraded')}\n"
             f"missing_runtime_tools: {', '.join(self.runtime_health.get('missing_tools', [])) or 'none'}\n"
-            f"update_channel: {UPDATE_CHANNEL}\n"
             f"app_version: {APP_VERSION}\n"
             f"alert_history_entries: {len(self.alert_history)}\n"
             f"last_alert: {last_alert}\n"
             f"config_file: {self.config_file}\n"
             f"log_file: {self.log_file}\n"
-            f"runtime_log_file: {self.runtime_log_file}"
+            f"runtime_log_file: {self.runtime_log_file}\n"
             f"\nusage_summary:\n{self.build_usage_summary()}"
         )
 
@@ -968,8 +1014,10 @@ class BatteryAlertApp(rumps.App):
         if latest_crash_report is not None:
             manifest["included_files"].append("crash_reports/latest_crash_report.json")
 
-        if latest_crash_report is not None:
-            manifest["included_files"].append("crash_reports/latest_crash_report.json")
+        if preset != "diagnostics":
+            rotated_logs = sorted(self.runtime_log_file.parent.glob("battery_alert.log.*"))
+            for rotated_log in rotated_logs:
+                manifest["included_files"].append(f"logs/{rotated_log.name}")
 
         safe_share_guide = (
             "Support Bundle Safe-Share Guide\n"
@@ -1003,8 +1051,6 @@ class BatteryAlertApp(rumps.App):
                     zf.write(rotated_log, arcname=f"logs/{rotated_log.name}")
 
         self.cleanup_old_support_artifacts()
-        for rotated_log in self.runtime_log_file.parent.glob("battery_alert.log.*"):
-            zf.write(rotated_log, arcname=f"logs/{rotated_log.name}")
 
         return bundle_path
 
@@ -1218,26 +1264,27 @@ class BatteryAlertApp(rumps.App):
 
     def _read_last_update_check(self):
         """Read last update-check timestamp from disk."""
-        if not self.update_state_file.exists():
+        if not hasattr(self, "update_state") or not isinstance(self.update_state, dict):
+            self.update_state = self.default_update_state_payload()
+
+        timestamp = self.update_state.get("last_checked")
+        if not timestamp:
             return None
+
         try:
-            with open(self.update_state_file) as f:
-                payload = json.load(f)
-            timestamp = payload.get("last_checked")
-            if not timestamp:
-                return None
             return datetime.fromisoformat(timestamp)
         except Exception:
-            self.recover_corrupted_json_file(
-                self.update_state_file,
-                {"last_checked": None},
-                "update state"
-            )
+            self.update_state = self.default_update_state_payload()
+            self.save_update_state()
             return None
 
     def _write_last_update_check(self, timestamp):
         """Persist last update-check timestamp."""
-        self._write_json_atomic(self.update_state_file, {"last_checked": timestamp.isoformat()})
+        if not hasattr(self, "update_state") or not isinstance(self.update_state, dict):
+            self.update_state = self.default_update_state_payload()
+
+        self.update_state["last_checked"] = timestamp.isoformat()
+        self.save_update_state()
 
     def should_check_for_updates(self, now=None, minimum_hours=24):
         """Throttle automatic update checks to avoid network chatter."""
@@ -1286,13 +1333,6 @@ class BatteryAlertApp(rumps.App):
                 latest_url=latest_url,
                 checked_at=checked_at,
             )
-
-            # The following lines were previously mis-indented and duplicated; keeping only the correct logic
-            # If update is available, record and log
-            if self.is_newer_version(latest, APP_VERSION):
-                self.record_update_check_result("update_available", latest_version=latest, checked_at=checked_at)
-                self.log_runtime(message)
-                return {"status": "update_available", "message": message}
 
             return {
                 "status": "up_to_date",
