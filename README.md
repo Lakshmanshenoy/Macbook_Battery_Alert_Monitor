@@ -29,9 +29,12 @@ A professional, user-friendly battery monitoring application for macOS. Get aler
 - Detailed alert history
 - Built-in diagnostics copy and config-folder access
 - One-click support bundle export (diagnostics + logs + config)
+- Structured crash reports for uncaught runtime failures
 - Rotating runtime logs for easier troubleshooting
 - Manual test alert for validating notifications
 - In-app update check against latest GitHub release
+- In-app version and update visibility panel
+- One-click access to the GitHub releases page
 - Lightweight and efficient
 - No additional dependencies for end-users
 
@@ -97,11 +100,13 @@ On first launch, the app shows a short onboarding tip and keeps a persistent rec
 - **Notifications** - Toggle macOS notifications
 - **Launch at Startup** - Enable auto-start
 - **Check Status** - View current battery information
+- **Version & Updates** - View app version, update channel, and latest known release state
 - **Test Alert Now** - Send a manual test notification
 - **View Alert History** - See recent low battery alerts
 - **Copy Diagnostics** - Copy support-friendly diagnostics to the clipboard
 - **Export Support Bundle** - Create a zipped bundle for issue reporting
 - **Check for Updates** - Check latest release availability
+- **Open Releases Page** - Open the project releases page in your browser
 - **Run Release Check** - Run the release smoke test in the background
 - **Open Config Folder** - Open the settings folder in Finder
 - **About** - App information
@@ -158,8 +163,10 @@ Support actions in the menu can also copy a diagnostics snapshot and open this f
 ## Maintenance
 
 - Use **Getting Started** if you want to reopen the onboarding tips.
+- Use **Version & Updates** to inspect the last check time and latest known release without starting a new network request.
 - Use **Run Release Check** to run the release smoke test from inside the app.
 - The release smoke test script is still available directly at `python3 scripts/release_smoke_test.py`.
+- Run `python3 scripts/run_pre_release_checks.py` for a one-command local pre-release validation pass.
 
 ## Release Security (Phase 3)
 
@@ -191,6 +198,15 @@ If these secrets are not set, the workflow still produces unsigned release artif
 - Diagnostics now include `Last update check` and `Last support bundle export` timestamps.
 - CI now lints GitHub workflows with `actionlint` before running tests.
 - CI and release workflows both exercise `scripts/verify_release_artifacts.py` for post-build artifact integrity checks.
+
+## Distribution and Observability (Phase 8)
+
+- The app now stores structured crash reports for uncaught exceptions under `~/.battery_alert/crash_reports/`.
+- Support bundles include the latest crash report when one is available.
+- The menu now includes **Version & Updates** and **Open Releases Page** for clearer self-service update handling.
+- `View System Status` now includes power-source transition history, support export counts, and tracked update state.
+- CI now verifies an uploaded/downloaded artifact pair instead of only checking a locally generated file.
+- Maintainers can run `python3 scripts/run_pre_release_checks.py` to execute the pre-release validation sequence locally.
 
 ## System Requirements
 
@@ -256,8 +272,11 @@ For issues or feature requests, please check:
 Before cutting a tagged release, run:
 - `pytest -q`
 - `python3 scripts/release_smoke_test.py`
+- `python3 scripts/run_pre_release_checks.py`
 
 The manual release checklist lives in [docs/release-qa-checklist.md](docs/release-qa-checklist.md).
+The step-by-step maintainer flow lives in [docs/release-runbook.md](docs/release-runbook.md).
+The support-handling guide lives in [docs/support-triage-guide.md](docs/support-triage-guide.md).
 
 ## License
 
