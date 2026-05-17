@@ -10,11 +10,10 @@ def test_build_command_plan_includes_core_release_checks():
     assert ["python3", "scripts/release_smoke_test.py"] in plan
 
 
+def test_phase9_release_helper_scripts_exist():
 def test_pre_release_script_exists():
     script_path = Path("scripts/run_pre_release_checks.py")
-
     assert script_path.exists()
-
 
 def test_phase9_release_helper_scripts_exist():
     assert Path("scripts/generate_release_manifest.py").exists()

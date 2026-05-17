@@ -19,6 +19,7 @@ Use this checklist before cutting a tagged release for Battery Alert Monitor.
 - Trigger `Export Support Bundle` and confirm the archive is created and Finder reveals it.
 - Confirm `Show Preferences`, `Copy Diagnostics`, and `Open Config Folder` all respond.
 
+
 ## Packaging
 
 - Build the app bundle with `bash build.sh`.
@@ -26,6 +27,7 @@ Use this checklist before cutting a tagged release for Battery Alert Monitor.
 - Run the release workflow via `workflow_dispatch` as a dry run and confirm artifacts are uploaded.
 - Confirm `release_manifest.json` is generated in release artifacts.
 - If signing secrets are configured, confirm codesign and notarization steps succeed.
+
 
 ## Release Artifacts
 
