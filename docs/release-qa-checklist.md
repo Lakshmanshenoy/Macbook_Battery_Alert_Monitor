@@ -1,0 +1,33 @@
+# Release QA Checklist
+
+Use this checklist before cutting a tagged release for Battery Alert Monitor.
+
+## Local Validation
+
+- Run the full test suite with `pytest -q`.
+- Run the release smoke check script.
+- Confirm `setup.sh` is executable and completes on a clean checkout.
+
+## App Behavior
+
+- Launch the app and confirm the menu bar icon appears.
+- Trigger `Check for Updates` and confirm it shows non-blocking feedback.
+- Trigger `Export Support Bundle` and confirm the archive is created and Finder reveals it.
+- Confirm `Show Preferences`, `Copy Diagnostics`, and `Open Config Folder` all respond.
+
+## Packaging
+
+- Build the app bundle with `bash build.sh`.
+- Build the DMG with `bash create_dmg.sh`.
+- If signing secrets are configured, confirm codesign and notarization steps succeed.
+
+## Release Artifacts
+
+- Confirm the release notes are up to date.
+- Confirm the DMG, checksums, and signing artifacts are attached to the release.
+- Confirm the release workflow has no failed jobs.
+
+## Support Readiness
+
+- Export a support bundle and verify it contains diagnostics, config, alert history, and logs.
+- Confirm the runtime log rotates under `~/.battery_alert/logs/`.

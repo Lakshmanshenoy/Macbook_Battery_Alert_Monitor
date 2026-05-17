@@ -227,6 +227,14 @@ For issues or feature requests, please check:
 - Configuration files in `~/.battery_alert/`
 - Console messages in `/tmp/battery_alert.log`
 
+## Release Validation
+
+Before cutting a tagged release, run:
+- `pytest -q`
+- `python3 scripts/release_smoke_test.py`
+
+The manual release checklist lives in [docs/release-qa-checklist.md](docs/release-qa-checklist.md).
+
 ## License
 
 This project is open-source and available for personal use.
