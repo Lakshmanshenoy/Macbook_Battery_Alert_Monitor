@@ -38,6 +38,7 @@ class BatteryAlertApp(rumps.App):
         self.pid_file = self.config_dir / "app.pid"
         self.runtime_log_file = self.config_dir / "logs" / "battery_alert.log"
         self.update_state_file = self.config_dir / "update_state.json"
+        self.app_state_file = self.config_dir / "app_state.json"
         
         # Create config directory
         self.config_dir.mkdir(exist_ok=True)
@@ -58,10 +59,18 @@ class BatteryAlertApp(rumps.App):
         self._last_alert_time = None
         self._last_power_state = None
         self._update_check_in_progress = False
+        self._release_validation_in_progress = False
         self.stop_event = threading.Event()
         
         # Alert history
         self.alert_history = []
+        self.app_state = {
+            "first_launch_completed": False,
+            "onboarding_shown_at": None,
+            "release_checks_run": 0,
+            "support_bundle_exports": 0,
+            "last_release_validation_at": None,
+        }
         self.logger = None
 
         # Logging should start before other runtime operations.
@@ -70,6 +79,7 @@ class BatteryAlertApp(rumps.App):
         # Load configuration
         self.load_config()
         self.load_alert_history()
+        self.load_app_state()
 
         # Ensure single-instance behavior before writing our PID
         self.ensure_single_instance()
@@ -92,6 +102,9 @@ class BatteryAlertApp(rumps.App):
         
         # Update icon with battery level immediately
         self.update_menu_icon()
+
+        # Show a lightweight first-run tip once, then remember that onboarding was shown.
+        self.maybe_show_first_run_onboarding()
 
         # Non-blocking update check on startup.
         self.check_for_updates(manual=False)
@@ -240,6 +253,78 @@ class BatteryAlertApp(rumps.App):
             self._write_json_atomic(self.log_file, self.alert_history[-100:])  # Keep up to 100 alerts
         except Exception as e:
             print(f"[ERROR] Failed to save history: {e}")
+
+    def load_app_state(self):
+        """Load persistent app state used for onboarding and maintenance metrics."""
+        if not self.app_state_file.exists():
+            self.save_app_state()
+            return
+
+        try:
+            with open(self.app_state_file) as f:
+                loaded_state = json.load(f)
+            if isinstance(loaded_state, dict):
+                self.app_state.update(loaded_state)
+        except Exception as e:
+            print(f"[ERROR] Failed to load app state: {e}")
+
+    def save_app_state(self):
+        """Persist app state used for onboarding and maintenance metrics."""
+        try:
+            self._write_json_atomic(self.app_state_file, self.app_state)
+        except Exception as e:
+            print(f"[ERROR] Failed to save app state: {e}")
+
+    def record_app_state_event(self, key, value=None):
+        """Record lightweight app usage metrics for post-release support."""
+        if not hasattr(self, "app_state") or not isinstance(self.app_state, dict):
+            self.app_state = {
+                "first_launch_completed": False,
+                "onboarding_shown_at": None,
+                "release_checks_run": 0,
+                "support_bundle_exports": 0,
+                "last_release_validation_at": None,
+            }
+
+        if key not in self.app_state:
+            return
+
+        if isinstance(self.app_state.get(key), int):
+            self.app_state[key] = int(self.app_state[key]) + (1 if value is None else value)
+        else:
+            self.app_state[key] = value
+        self.save_app_state()
+
+    def onboarding_summary(self):
+        """Return a short onboarding summary for new users."""
+        return (
+            "Welcome to Battery Alert Monitor.\n\n"
+            "Quick start:\n"
+            "1. Set Battery Threshold and Alert Cooldown from the menu.\n"
+            "2. Use Check for Updates or Run Release Check from the maintenance menu.\n"
+            "3. Export a Support Bundle if you need help troubleshooting.\n\n"
+            "You can reopen this message from the menu anytime."
+        )
+
+    def show_getting_started(self, _=None):
+        """Show onboarding guidance on demand."""
+        try:
+            rumps.alert("Getting Started", self.onboarding_summary())
+        except Exception as e:
+            print(f"[ERROR] Error in show_getting_started: {e}")
+
+    def maybe_show_first_run_onboarding(self):
+        """Show a one-time onboarding tip on first launch."""
+        if self.app_state.get("first_launch_completed"):
+            return
+
+        self.app_state["first_launch_completed"] = True
+        self.app_state["onboarding_shown_at"] = datetime.now().isoformat()
+        self.save_app_state()
+        self.show_non_blocking_feedback(
+            "Welcome",
+            "Battery Alert is ready. Open Getting Started for a short tour of the main settings."
+        )
 
     def _is_process_running(self, pid):
         """Check if a process with the given PID exists."""
@@ -449,6 +534,7 @@ class BatteryAlertApp(rumps.App):
     def setup_menu(self):
         """Setup the menu bar items"""
         self.menu = [
+            rumps.MenuItem("Getting Started", self.show_getting_started),
             rumps.MenuItem("Show Preferences", self.show_preferences),
             rumps.MenuItem("Battery Threshold", self.set_threshold),
             rumps.MenuItem("Check Interval", self.set_interval),
@@ -468,6 +554,7 @@ class BatteryAlertApp(rumps.App):
             None,
             rumps.MenuItem("Check Status", self.check_status),
             rumps.MenuItem("Check for Updates", self.check_for_updates_now),
+            rumps.MenuItem("Run Release Check", self.run_release_validation_now),
             rumps.MenuItem("Test Alert Now", self.test_alert),
             rumps.MenuItem("View Alert History", self.view_alert_history),
             rumps.MenuItem("Copy Diagnostics", self.copy_diagnostics),
@@ -516,6 +603,24 @@ class BatteryAlertApp(rumps.App):
             f"Update checks: {updates_text}"
         )
 
+    def build_usage_summary(self):
+        """Return a short summary of onboarding and maintenance metrics."""
+        state = self.app_state if hasattr(self, "app_state") and isinstance(self.app_state, dict) else {
+            "first_launch_completed": False,
+            "onboarding_shown_at": None,
+            "release_checks_run": 0,
+            "support_bundle_exports": 0,
+            "last_release_validation_at": None,
+        }
+
+        return (
+            f"First launch completed: {state.get('first_launch_completed')}\n"
+            f"Onboarding shown at: {state.get('onboarding_shown_at') or 'never'}\n"
+            f"Release checks run: {state.get('release_checks_run', 0)}\n"
+            f"Support bundles exported: {state.get('support_bundle_exports', 0)}\n"
+            f"Last release validation: {state.get('last_release_validation_at') or 'never'}"
+        )
+
     def build_diagnostics_report(self, battery_info=None):
         """Build a support-friendly diagnostics snapshot."""
         battery_info = battery_info or self.get_battery_info()
@@ -543,6 +648,7 @@ class BatteryAlertApp(rumps.App):
             f"config_file: {self.config_file}\n"
             f"log_file: {self.log_file}\n"
             f"runtime_log_file: {self.runtime_log_file}"
+            f"\nusage_summary:\n{self.build_usage_summary()}"
         )
 
     def create_support_bundle_archive(self):
@@ -939,12 +1045,53 @@ Alert Cooldown: {self.settings['alert_cooldown_seconds']} seconds"""
         """Generate a support zip bundle for troubleshooting."""
         try:
             bundle_path = self.create_support_bundle_archive()
+            self.record_app_state_event("support_bundle_exports")
             self.log_runtime(f"Support bundle exported to {bundle_path}")
             subprocess.run(["open", "-R", str(bundle_path)], check=False)
             self.show_feedback("Support Bundle Exported", f"Support bundle created at:\n{bundle_path}")
         except Exception as e:
             self.log_runtime(f"Failed to export support bundle: {e}", level="warning")
             self.show_feedback("Error", f"Failed to export support bundle: {e}")
+
+    def build_release_validation_command(self):
+        """Build the command used to run the release smoke test."""
+        smoke_test_script = Path(__file__).resolve().parent / "scripts" / "release_smoke_test.py"
+        return [sys.executable, str(smoke_test_script)]
+
+    def _run_release_validation(self):
+        """Run the release smoke test and report the outcome."""
+        try:
+            command = self.build_release_validation_command()
+            result = subprocess.run(command, capture_output=True, text=True)
+            self.record_app_state_event("release_checks_run")
+            self.app_state["last_release_validation_at"] = datetime.now().isoformat()
+            self.save_app_state()
+
+            if result.returncode == 0:
+                self.show_non_blocking_feedback(
+                    "Release Check Passed",
+                    "Release smoke test completed successfully."
+                )
+                self.log_runtime("Release smoke test completed successfully")
+            else:
+                message = (result.stderr or result.stdout or "Release smoke test failed.").strip()
+                self.show_non_blocking_feedback("Release Check Failed", message[:180])
+                self.log_runtime(f"Release smoke test failed: {message}", level="warning")
+        except Exception as e:
+            self.log_runtime(f"Release validation error: {e}", level="warning")
+            self.show_non_blocking_feedback("Release Check Failed", "Unable to run the release smoke test right now.")
+        finally:
+            self._release_validation_in_progress = False
+
+    def run_release_validation_now(self, _):
+        """Run the release smoke test in the background."""
+        if self._release_validation_in_progress:
+            self.show_non_blocking_feedback("Release Check", "A release check is already in progress.")
+            return
+
+        self._release_validation_in_progress = True
+        self.show_non_blocking_feedback("Release Check", "Running the release smoke test in the background...")
+        threading.Thread(target=self._run_release_validation, daemon=True).start()
 
     def open_config_folder(self, _):
         """Open the configuration directory in Finder."""
