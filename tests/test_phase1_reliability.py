@@ -2,6 +2,7 @@ import importlib
 from datetime import datetime, timedelta
 from pathlib import Path
 import json
+import zipfile
 import sys
 import types
 
@@ -52,6 +53,8 @@ def _new_app_for_unit_tests(tmp_path):
     app.config_file = Path(tmp_path) / "config.json"
     app.log_file = Path(tmp_path) / "alert_history.json"
     app.pid_file = Path(tmp_path) / "app.pid"
+    app.runtime_log_file = Path(tmp_path) / "logs" / "battery_alert.log"
+    app.update_state_file = Path(tmp_path) / "update_state.json"
     app.settings = {
         "battery_threshold": 20,
         "check_interval": 10,
@@ -60,10 +63,13 @@ def _new_app_for_unit_tests(tmp_path):
         "enable_voice": True,
         "enable_notifications": True,
         "auto_launch": False,
+        "enable_update_checks": True,
     }
     app.alert_history = []
     app._below_threshold_prev = False
     app._last_alert_time = None
+    app._last_power_state = None
+    app.logger = None
     return app
 
 
@@ -138,6 +144,7 @@ def test_format_settings_summary_includes_phase2_fields(tmp_path):
     assert "Alert cooldown: 120 seconds" in summary
     assert "Alert modes: sound, notifications" in summary
     assert "Launch at startup: enabled" in summary
+    assert "Update checks: enabled" in summary
 
 
 def test_build_diagnostics_report_includes_support_context(tmp_path):
@@ -153,6 +160,7 @@ def test_build_diagnostics_report_includes_support_context(tmp_path):
     assert "alert_history_entries: 1" in report
     assert "last_alert: 2026-01-01 10:00:00" in report
     assert f"config_file: {app.config_file}" in report
+    assert "app_version:" in report
 
 
 def test_prompt_for_integer_setting_updates_value_and_persists(tmp_path, monkeypatch):
@@ -189,3 +197,42 @@ def test_update_boolean_setting_updates_label_and_value(tmp_path):
 
     assert app.settings["enable_sound"] is False
     assert sender.title == "🔊 Sound Alerts: OFF"
+
+
+def test_is_newer_version_compares_semver_like_values(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+
+    assert app.is_newer_version("1.2.0", "1.1.9") is True
+    assert app.is_newer_version("v1.1.0", "1.1.0") is False
+    assert app.is_newer_version("1.1.0-beta", "1.0.9") is True
+
+
+def test_should_check_for_updates_throttles_by_last_check(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    now = datetime(2026, 1, 1, 12, 0, 0)
+
+    assert app.should_check_for_updates(now=now, minimum_hours=24) is True
+
+    app._write_last_update_check(now - timedelta(hours=2))
+    assert app.should_check_for_updates(now=now, minimum_hours=24) is False
+
+    app._write_last_update_check(now - timedelta(hours=30))
+    assert app.should_check_for_updates(now=now, minimum_hours=24) is True
+
+
+def test_create_support_bundle_archive_contains_core_files(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.config_file.write_text('{"battery_threshold": 20}')
+    app.log_file.write_text('[]')
+    app.runtime_log_file.parent.mkdir(parents=True, exist_ok=True)
+    app.runtime_log_file.write_text('runtime log line')
+
+    bundle_path = app.create_support_bundle_archive()
+
+    assert bundle_path.exists()
+    with zipfile.ZipFile(bundle_path, "r") as zf:
+        names = set(zf.namelist())
+    assert "diagnostics.txt" in names
+    assert "config.json" in names
+    assert "alert_history.json" in names
+    assert "logs/battery_alert.log" in names

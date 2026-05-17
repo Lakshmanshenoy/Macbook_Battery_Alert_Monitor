@@ -28,7 +28,10 @@ A professional, user-friendly battery monitoring application for macOS. Get aler
 - Real-time battery percentage in menu bar
 - Detailed alert history
 - Built-in diagnostics copy and config-folder access
+- One-click support bundle export (diagnostics + logs + config)
+- Rotating runtime logs for easier troubleshooting
 - Manual test alert for validating notifications
+- In-app update check against latest GitHub release
 - Lightweight and efficient
 - No additional dependencies for end-users
 
@@ -95,6 +98,8 @@ The built app will be in `dist/Battery Alert.app`
 - **Test Alert Now** - Send a manual test notification
 - **View Alert History** - See recent low battery alerts
 - **Copy Diagnostics** - Copy support-friendly diagnostics to the clipboard
+- **Export Support Bundle** - Create a zipped bundle for issue reporting
+- **Check for Updates** - Check latest release availability
 - **Open Config Folder** - Open the settings folder in Finder
 - **About** - App information
 - **Quit** - Close the application
@@ -142,8 +147,26 @@ Settings are stored in `~/.battery_alert/` directory:
 - `config.json` - Your preferences
 - `alert_history.json` - Log of recent alerts
 - `app.pid` - Process ID file
+- `logs/battery_alert.log` - Rotating runtime log file
+- `support_bundle_*.zip` - Exported troubleshooting bundles
 
 Support actions in the menu can also copy a diagnostics snapshot and open this folder directly.
+
+## Release Security (Phase 3)
+
+The release workflow now supports optional signing and notarization for macOS artifacts.
+
+Add these repository secrets to enable signed releases:
+- `MACOS_SIGNING_CERT_BASE64` - Base64-encoded `.p12` Developer ID certificate
+- `MACOS_SIGNING_CERT_PASSWORD` - Password for the `.p12` certificate
+- `MACOS_SIGNING_IDENTITY` - Codesign identity (for example: `Developer ID Application: Your Name (TEAMID)`)
+
+Add these repository secrets to enable notarization:
+- `APPLE_ID`
+- `APPLE_APP_SPECIFIC_PASSWORD`
+- `APPLE_TEAM_ID`
+
+If these secrets are not set, the workflow still produces unsigned release artifacts.
 
 ## System Requirements
 
