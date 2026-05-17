@@ -91,6 +91,8 @@ def new_app():
         "onboarding_shown_at": None,
         "release_checks_run": 0,
         "support_bundle_exports": 0,
+        "last_support_bundle_export_at": None,
+        "last_update_check_at": None,
         "last_release_validation_at": None,
     }
     app._below_threshold_prev = False

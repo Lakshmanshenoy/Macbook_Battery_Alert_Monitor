@@ -184,6 +184,14 @@ If these secrets are not set, the workflow still produces unsigned release artif
 - Diagnostics in support bundles redact your home-directory path (`/Users/...` -> `~`).
 - The release workflow supports `workflow_dispatch` dry runs that build and verify artifacts without publishing a GitHub release.
 
+## Validation and Support Polish (Phase 7)
+
+- Startup now recovers from corrupted config, app-state, alert-history, and update-state JSON files by quarantining unreadable files and restoring safe defaults.
+- Support diagnostics redaction now also masks email addresses and obvious username markers.
+- Diagnostics now include `Last update check` and `Last support bundle export` timestamps.
+- CI now lints GitHub workflows with `actionlint` before running tests.
+- CI and release workflows both exercise `scripts/verify_release_artifacts.py` for post-build artifact integrity checks.
+
 ## System Requirements
 
 - **OS:** macOS 10.13 or later

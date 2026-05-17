@@ -6,6 +6,7 @@ Use this checklist before cutting a tagged release for Battery Alert Monitor.
 
 - Run the full test suite with `pytest -q`.
 - Run the release smoke check script.
+- Run `python3 scripts/verify_release_artifacts.py --artifact <artifact> --checksums checksums.txt` against a generated artifact/checksum pair.
 - Confirm `setup.sh` is executable and completes on a clean checkout.
 
 ## App Behavior
@@ -27,6 +28,7 @@ Use this checklist before cutting a tagged release for Battery Alert Monitor.
 - Confirm the release notes are up to date.
 - Confirm the DMG, checksums, and signing artifacts are attached to the release.
 - Confirm the release workflow has no failed jobs.
+- Confirm CI workflow lint (`actionlint`) passes for workflow syntax/semantics.
 
 ## Support Readiness
 

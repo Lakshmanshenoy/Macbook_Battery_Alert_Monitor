@@ -15,6 +15,7 @@ from logging.handlers import RotatingFileHandler
 import urllib.request
 import urllib.error
 import zipfile
+import re
 from datetime import datetime
 from pathlib import Path
 import rumps
@@ -54,6 +55,8 @@ class BatteryAlertApp(rumps.App):
             "onboarding_shown_at": None,
             "release_checks_run": 0,
             "support_bundle_exports": 0,
+            "last_support_bundle_export_at": None,
+            "last_update_check_at": None,
             "last_release_validation_at": None,
         }
     
@@ -132,9 +135,18 @@ class BatteryAlertApp(rumps.App):
                     loaded = json.load(f)
                     if isinstance(loaded, dict):
                         self.settings = self.migrate_config_payload(loaded)
+                    else:
+                        self.settings = self.default_settings_payload()
                 self.validate_settings()
             except Exception as e:
                 print(f"[ERROR] Failed to load config: {e}")
+                self.settings = self.default_settings_payload()
+                self.validate_settings()
+                self.recover_corrupted_json_file(
+                    self.config_file,
+                    self.settings,
+                    "config"
+                )
         else:
             self.save_config()
 
@@ -248,6 +260,21 @@ class BatteryAlertApp(rumps.App):
             f.flush()
             os.fsync(f.fileno())
         os.replace(temp_path, file_path)
+
+    def recover_corrupted_json_file(self, file_path, default_payload, context_label):
+        """Quarantine unreadable JSON and replace it with a safe default payload."""
+        try:
+            if file_path.exists():
+                quarantine_name = f"{file_path.name}.corrupt.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                quarantine_path = file_path.with_name(quarantine_name)
+                file_path.replace(quarantine_path)
+                self.log_runtime(
+                    f"Recovered corrupted {context_label} file by quarantining to {quarantine_path.name}",
+                    level="warning"
+                )
+            self._write_json_atomic(file_path, default_payload)
+        except Exception as e:
+            print(f"[ERROR] Failed to recover corrupted {context_label} file: {e}")
     
     def save_config(self):
         """Save configuration to file"""
@@ -270,8 +297,12 @@ class BatteryAlertApp(rumps.App):
                             and "time" in alert
                             and "battery_level" in alert
                         ][-50:]  # Keep last 50 alerts
+                    else:
+                        self.alert_history = []
             except Exception as e:
                 print(f"[ERROR] Failed to load history: {e}")
+                self.alert_history = []
+                self.recover_corrupted_json_file(self.log_file, [], "alert history")
     
     def save_alert_history(self):
         """Save alert history to file"""
@@ -291,8 +322,17 @@ class BatteryAlertApp(rumps.App):
                 loaded_state = json.load(f)
             if isinstance(loaded_state, dict):
                 self.app_state = self.migrate_app_state_payload(loaded_state)
+            else:
+                self.app_state = self.default_app_state_payload()
+                self.save_app_state()
         except Exception as e:
             print(f"[ERROR] Failed to load app state: {e}")
+            self.app_state = self.default_app_state_payload()
+            self.recover_corrupted_json_file(
+                self.app_state_file,
+                self.app_state,
+                "app state"
+            )
 
     def migrate_app_state_payload(self, payload):
         """Migrate persisted app-state payloads from older schema versions."""
@@ -645,6 +685,8 @@ class BatteryAlertApp(rumps.App):
             f"Onboarding shown at: {state.get('onboarding_shown_at') or 'never'}\n"
             f"Release checks run: {state.get('release_checks_run', 0)}\n"
             f"Support bundles exported: {state.get('support_bundle_exports', 0)}\n"
+            f"Last support bundle export: {state.get('last_support_bundle_export_at') or 'never'}\n"
+            f"Last update check: {state.get('last_update_check_at') or 'never'}\n"
             f"Last release validation: {state.get('last_release_validation_at') or 'never'}"
         )
 
@@ -652,7 +694,23 @@ class BatteryAlertApp(rumps.App):
         """Redact obvious local path/user information from shared diagnostics."""
         if not isinstance(text, str):
             return ""
-        return text.replace(str(Path.home()), "~")
+        redacted = text.replace(str(Path.home()), "~")
+        redacted = re.sub(r"/Users/[^/\s]+", "/Users/<redacted-user>", redacted)
+        redacted = re.sub(
+            r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
+            "<redacted-email>",
+            redacted,
+        )
+        redacted = re.sub(
+            r"(?im)^(\s*(?:username|user|account)\s*[:=]\s*).+$",
+            r"\1<redacted-user>",
+            redacted,
+        )
+        return redacted
+
+    def show_maintenance_status(self, message):
+        """Show concise non-blocking status for maintenance actions."""
+        self.show_non_blocking_feedback("Maintenance", message)
 
     def build_diagnostics_report(self, battery_info=None):
         """Build a support-friendly diagnostics snapshot."""
@@ -904,6 +962,11 @@ class BatteryAlertApp(rumps.App):
                 return None
             return datetime.fromisoformat(timestamp)
         except Exception:
+            self.recover_corrupted_json_file(
+                self.update_state_file,
+                {"last_checked": None},
+                "update state"
+            )
             return None
 
     def _write_last_update_check(self, timestamp):
@@ -928,7 +991,9 @@ class BatteryAlertApp(rumps.App):
 
         try:
             latest = self.get_latest_release_version()
-            self._write_last_update_check(datetime.now())
+            checked_at = datetime.now()
+            self._write_last_update_check(checked_at)
+            self.record_app_state_event("last_update_check_at", checked_at.isoformat())
 
             if not latest:
                 return {
@@ -966,24 +1031,24 @@ class BatteryAlertApp(rumps.App):
             message = result.get("message", "Unable to check updates right now. Please try again later.")
 
             if status == "update_available":
-                self.show_non_blocking_feedback("Update Available", message)
+                self.show_maintenance_status(f"Update check complete: {message}")
             elif status == "up_to_date":
-                self.show_non_blocking_feedback("No Updates", message)
+                self.show_maintenance_status("Update check complete: no updates found.")
             elif status == "unknown":
-                self.show_non_blocking_feedback("Update Check", message)
+                self.show_maintenance_status(f"Update check complete: {message}")
             else:
-                self.show_non_blocking_feedback("Update Check Failed", message)
+                self.show_maintenance_status(f"Update check failed: {message}")
         finally:
             self._update_check_in_progress = False
 
     def check_for_updates_now(self, _):
         """Manual update check entrypoint for menu action."""
         if self._update_check_in_progress:
-            self.show_non_blocking_feedback("Update Check", "An update check is already in progress.")
+            self.show_maintenance_status("Update check already in progress.")
             return
 
         self._update_check_in_progress = True
-        self.show_non_blocking_feedback("Update Check", "Checking for updates in the background...")
+        self.show_maintenance_status("Update check started.")
         threading.Thread(target=self._run_manual_update_check, daemon=True).start()
     
     def setup_autolaunch(self):
@@ -1105,8 +1170,10 @@ Alert Cooldown: {self.settings['alert_cooldown_seconds']} seconds"""
         try:
             bundle_path = self.create_support_bundle_archive()
             self.record_app_state_event("support_bundle_exports")
+            self.record_app_state_event("last_support_bundle_export_at", datetime.now().isoformat())
             self.log_runtime(f"Support bundle exported to {bundle_path}")
             subprocess.run(["open", "-R", str(bundle_path)], check=False)
+            self.show_maintenance_status("Support bundle export complete.")
             self.show_feedback(
                 "Support Bundle Exported",
                 f"Support bundle created at:\n{bundle_path}\n\n"
@@ -1131,29 +1198,26 @@ Alert Cooldown: {self.settings['alert_cooldown_seconds']} seconds"""
             self.save_app_state()
 
             if result.returncode == 0:
-                self.show_non_blocking_feedback(
-                    "Release Check Passed",
-                    "Release smoke test completed successfully."
-                )
+                self.show_maintenance_status("Release check complete: passed.")
                 self.log_runtime("Release smoke test completed successfully")
             else:
                 message = (result.stderr or result.stdout or "Release smoke test failed.").strip()
-                self.show_non_blocking_feedback("Release Check Failed", message[:180])
+                self.show_maintenance_status(f"Release check failed: {message[:160]}")
                 self.log_runtime(f"Release smoke test failed: {message}", level="warning")
         except Exception as e:
             self.log_runtime(f"Release validation error: {e}", level="warning")
-            self.show_non_blocking_feedback("Release Check Failed", "Unable to run the release smoke test right now.")
+            self.show_maintenance_status("Release check failed: unable to run smoke test.")
         finally:
             self._release_validation_in_progress = False
 
     def run_release_validation_now(self, _):
         """Run the release smoke test in the background."""
         if self._release_validation_in_progress:
-            self.show_non_blocking_feedback("Release Check", "A release check is already in progress.")
+            self.show_maintenance_status("Release check already in progress.")
             return
 
         self._release_validation_in_progress = True
-        self.show_non_blocking_feedback("Release Check", "Running the release smoke test in the background...")
+        self.show_maintenance_status("Release check started.")
         threading.Thread(target=self._run_release_validation, daemon=True).start()
 
     def open_config_folder(self, _):

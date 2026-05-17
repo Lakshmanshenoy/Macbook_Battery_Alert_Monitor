@@ -7,8 +7,16 @@ on:
     branches: [ main ]
 
 jobs:
+  workflow-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint GitHub workflows
+        uses: reviewdog/action-actionlint@v1
+
   test:
     runs-on: ${{ matrix.os }}
+    needs: workflow-lint
     strategy:
       matrix:
         os: [macos-latest]
@@ -34,3 +42,11 @@ jobs:
       - name: Run release smoke test
         run: |
           python3 scripts/release_smoke_test.py
+      - name: Verify artifact integrity script in CI
+        run: |
+          mkdir -p tmp_release
+          printf 'phase7-ci-artifact' > tmp_release/Battery\ Alert.dmg
+          bash scripts/generate_checksums.sh tmp_release/Battery\ Alert.dmg
+          python3 scripts/verify_release_artifacts.py \
+            --artifact tmp_release/Battery\ Alert.dmg \
+            --checksums checksums.txt
