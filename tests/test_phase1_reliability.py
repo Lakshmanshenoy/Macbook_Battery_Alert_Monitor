@@ -74,6 +74,8 @@ def _new_app_for_unit_tests(tmp_path):
         "onboarding_shown_at": None,
         "release_checks_run": 0,
         "support_bundle_exports": 0,
+        "last_support_bundle_export_at": None,
+        "last_update_check_at": None,
         "last_release_validation_at": None,
     }
     app._below_threshold_prev = False
@@ -267,16 +269,71 @@ def test_migrate_app_state_payload_adds_schema_and_defaults(tmp_path):
     assert migrated["app_state_schema_version"] == battery_alert_module.APP_STATE_SCHEMA_VERSION
     assert migrated["release_checks_run"] == 7
     assert migrated["support_bundle_exports"] == 0
+    assert migrated["last_update_check_at"] is None
+    assert migrated["last_support_bundle_export_at"] is None
 
 
 def test_redact_text_for_support_share_masks_home_path(tmp_path):
     app = _new_app_for_unit_tests(tmp_path)
-    text = f"config path: {Path.home()}/.battery_alert/config.json"
+    text = (
+        f"config path: {Path.home()}/.battery_alert/config.json\n"
+        "user: lakshman\n"
+        "contact: person@example.com\n"
+        "fallback path: /Users/alice/Documents"
+    )
 
     redacted = app.redact_text_for_support_share(text)
 
     assert str(Path.home()) not in redacted
     assert "~/.battery_alert/config.json" in redacted
+    assert "person@example.com" not in redacted
+    assert "<redacted-email>" in redacted
+    assert "user: <redacted-user>" in redacted
+    assert "/Users/<redacted-user>/Documents" in redacted
+
+
+def test_load_config_migrates_pre_schema_payload(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.config_file.write_text(json.dumps({"battery_threshold": 33}, indent=2))
+
+    app.load_config()
+
+    assert app.settings["battery_threshold"] == 33
+    assert app.settings["config_schema_version"] == battery_alert_module.CONFIG_SCHEMA_VERSION
+    assert app.settings["enable_update_checks"] is True
+
+
+def test_load_app_state_migrates_pre_schema_payload(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.app_state_file.write_text(json.dumps({"support_bundle_exports": 2}, indent=2))
+
+    app.load_app_state()
+
+    assert app.app_state["support_bundle_exports"] == 2
+    assert app.app_state["app_state_schema_version"] == battery_alert_module.APP_STATE_SCHEMA_VERSION
+    assert app.app_state["last_update_check_at"] is None
+
+
+def test_load_config_recovers_corrupted_json(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.config_file.write_text("{broken")
+
+    app.load_config()
+
+    assert app.settings["config_schema_version"] == battery_alert_module.CONFIG_SCHEMA_VERSION
+    quarantined = list(app.config_dir.glob("config.json.corrupt.*"))
+    assert quarantined
+
+
+def test_load_alert_history_recovers_corrupted_json(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.log_file.write_text("[broken")
+
+    app.load_alert_history()
+
+    assert app.alert_history == []
+    quarantined = list(app.config_dir.glob("alert_history.json.corrupt.*"))
+    assert quarantined
 
 
 def test_first_run_onboarding_marks_state_and_is_idempotent(tmp_path, monkeypatch):
@@ -328,8 +385,8 @@ def test_run_release_validation_now_runs_in_background(tmp_path, monkeypatch):
 
     assert commands == [["python3", "scripts/release_smoke_test.py"]]
     assert started == [True]
-    assert shown[0] == ("Release Check", "Running the release smoke test in the background...")
-    assert shown[-1] == ("Release Check Passed", "Release smoke test completed successfully.")
+    assert shown[0] == ("Maintenance", "Release check started.")
+    assert shown[-1] == ("Maintenance", "Release check complete: passed.")
     assert app.app_state["release_checks_run"] == 1
     assert app.app_state["last_release_validation_at"] is not None
 
@@ -386,5 +443,19 @@ def test_run_manual_update_check_sends_non_blocking_feedback(tmp_path, monkeypat
 
     app._run_manual_update_check()
 
-    assert shown == [("No Updates", "You are up to date on version 1.1.0.")]
+    assert shown == [("Maintenance", "Update check complete: no updates found.")]
     assert app._update_check_in_progress is False
+
+
+def test_support_bundle_diagnostics_do_not_leak_home_path(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.config_file.write_text('{"battery_threshold": 20}')
+    app.log_file.write_text('[]')
+    app.runtime_log_file.parent.mkdir(parents=True, exist_ok=True)
+    app.runtime_log_file.write_text("runtime log line")
+
+    bundle_path = app.create_support_bundle_archive()
+    with zipfile.ZipFile(bundle_path, "r") as zf:
+        diagnostics = zf.read("diagnostics.txt").decode("utf-8")
+
+    assert str(Path.home()) not in diagnostics
