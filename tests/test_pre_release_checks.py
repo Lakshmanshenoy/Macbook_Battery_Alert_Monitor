@@ -1,6 +1,3 @@
-def test_build_command_plan_includes_core_release_checks():
-def test_phase9_release_helper_scripts_exist():
-def test_phase9_release_helper_scripts_exist():
 from pathlib import Path
 
 from scripts.run_pre_release_checks import build_command_plan
