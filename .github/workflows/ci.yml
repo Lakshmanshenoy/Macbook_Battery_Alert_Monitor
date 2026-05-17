@@ -50,3 +50,30 @@ jobs:
           python3 scripts/verify_release_artifacts.py \
             --artifact tmp_release/Battery\ Alert.dmg \
             --checksums checksums.txt
+      - name: Upload synthetic release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-synthetic-release
+          path: |
+            tmp_release/Battery Alert.dmg
+            checksums.txt
+
+  verify-uploaded-artifact:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Download uploaded artifact bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-synthetic-release
+          path: downloaded_artifacts
+      - name: Verify downloaded artifact integrity
+        run: |
+          python3 scripts/verify_release_artifacts.py \
+            --artifact downloaded_artifacts/tmp_release/Battery\ Alert.dmg \
+            --checksums downloaded_artifacts/checksums.txt

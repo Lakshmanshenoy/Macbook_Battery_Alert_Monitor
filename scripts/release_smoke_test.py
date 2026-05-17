@@ -86,15 +86,20 @@ def new_app():
     }
     app.alert_history = []
     app.app_state = {
-        "app_state_schema_version": 2,
+        "app_state_schema_version": 3,
         "first_launch_completed": False,
         "onboarding_shown_at": None,
         "release_checks_run": 0,
         "support_bundle_exports": 0,
         "last_support_bundle_export_at": None,
         "last_update_check_at": None,
+        "last_update_status": None,
+        "last_known_release_version": None,
+        "last_crash_report_at": None,
         "last_release_validation_at": None,
     }
+    app.crash_reports_dir = temp_dir / "crash_reports"
+    app._last_power_transition = None
     app._below_threshold_prev = False
     app._last_alert_time = None
     app._last_power_state = None
