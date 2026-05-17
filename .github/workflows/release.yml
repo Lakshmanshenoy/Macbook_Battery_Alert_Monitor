@@ -159,6 +159,16 @@ jobs:
             --artifact release_artifacts/Battery\ Alert.dmg \
             --checksums checksums.txt
 
+      - name: Generate release manifest
+        run: |
+          python3 scripts/generate_release_manifest.py \
+            --version "${GITHUB_REF_NAME#v}" \
+            --artifact release_artifacts/Battery\ Alert.dmg \
+            --checksums checksums.txt \
+            --signing-status "optional" \
+            --notarization-status "optional" \
+            --output release_artifacts/release_manifest.json
+
       - name: Upload release artifacts to workflow run
         uses: actions/upload-artifact@v4
         with:
@@ -181,5 +191,6 @@ jobs:
             release_artifacts/checksums.txt
             release_artifacts/checksums.txt.asc
             release_artifacts/maintainer_public_key.asc
+            release_artifacts/release_manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

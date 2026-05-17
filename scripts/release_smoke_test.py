@@ -83,10 +83,11 @@ def new_app():
         "enable_notifications": True,
         "auto_launch": False,
         "enable_update_checks": True,
+        "update_channel": "stable",
     }
     app.alert_history = []
     app.app_state = {
-        "app_state_schema_version": 3,
+        "app_state_schema_version": 4,
         "first_launch_completed": False,
         "onboarding_shown_at": None,
         "release_checks_run": 0,
@@ -95,6 +96,7 @@ def new_app():
         "last_update_check_at": None,
         "last_update_status": None,
         "last_known_release_version": None,
+        "last_known_release_url": None,
         "last_crash_report_at": None,
         "last_release_validation_at": None,
     }
@@ -106,6 +108,7 @@ def new_app():
     app._update_check_in_progress = False
     app._release_validation_in_progress = False
     app.logger = None
+    app.runtime_health = {"missing_tools": [], "is_degraded": False, "checked_at": None}
     return module, app
 
 
@@ -141,7 +144,7 @@ def main() -> int:
         print(f"Smoke test failed: support bundle missing files: {sorted(required - names)}")
         return 1
 
-    app.get_latest_release_version = lambda: "1.2.0"
+    app.get_latest_release = lambda: {"version": "1.2.0", "url": "https://example.com/release/1.2.0"}
     result = app.check_for_updates(manual=True)
     if result["status"] != "update_available":
         print("Smoke test failed: update check did not return update_available.")

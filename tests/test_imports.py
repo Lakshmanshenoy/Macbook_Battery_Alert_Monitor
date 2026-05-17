@@ -37,6 +37,7 @@ def _install_rumps_stub():
 
 def test_can_import_main_module():
     # Sanity check: importing the main module should succeed
+    # Sanity check: importing the main module should succeed
     _install_rumps_stub()
     mod = importlib.import_module('battery_alert_gui')
     assert mod is not None

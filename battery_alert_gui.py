@@ -17,19 +17,27 @@ import urllib.error
 import zipfile
 import re
 import traceback
+import shutil
 from datetime import datetime
 from pathlib import Path
 import rumps
 
 
 APP_VERSION = "1.1.0"
-LATEST_RELEASE_API = "https://api.github.com/repos/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/releases/latest"
+LATEST_STABLE_RELEASE_API = "https://api.github.com/repos/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/releases/latest"
+RELEASES_API = "https://api.github.com/repos/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/releases"
 RELEASES_PAGE_URL = "https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/releases"
 UPDATE_CHANNEL = "stable"
 CONFIG_SCHEMA_VERSION = 2
-APP_STATE_SCHEMA_VERSION = 3
-SUPPORT_BUNDLE_SCHEMA_VERSION = 3
+APP_STATE_SCHEMA_VERSION = 4
+SUPPORT_BUNDLE_SCHEMA_VERSION = 4
 CRASH_REPORT_SCHEMA_VERSION = 1
+REQUIRED_RUNTIME_TOOLS = {
+    "pmset": "battery monitoring",
+    "osascript": "notifications",
+    "afplay": "sound alerts",
+    "say": "voice alerts",
+}
 
 
 class BatteryAlertApp(rumps.App):
@@ -48,6 +56,7 @@ class BatteryAlertApp(rumps.App):
             "enable_notifications": True,
             "auto_launch": False,
             "enable_update_checks": True,
+            "update_channel": UPDATE_CHANNEL,
         }
 
     @staticmethod
@@ -63,6 +72,7 @@ class BatteryAlertApp(rumps.App):
             "last_update_check_at": None,
             "last_update_status": None,
             "last_known_release_version": None,
+            "last_known_release_url": None,
             "last_crash_report_at": None,
             "last_release_validation_at": None,
         }
@@ -95,6 +105,11 @@ class BatteryAlertApp(rumps.App):
         self._release_validation_in_progress = False
         self._previous_excepthook = None
         self._previous_threading_excepthook = None
+        self.runtime_health = {
+            "missing_tools": [],
+            "is_degraded": False,
+            "checked_at": None,
+        }
         self.stop_event = threading.Event()
         
         # Alert history
@@ -105,6 +120,7 @@ class BatteryAlertApp(rumps.App):
         # Logging should start before other runtime operations.
         self.setup_runtime_logging()
         self.install_exception_hooks()
+        self.check_runtime_dependencies()
         
         # Load configuration
         self.load_config()
@@ -201,7 +217,30 @@ class BatteryAlertApp(rumps.App):
         self.settings["enable_notifications"] = bool(self.settings.get("enable_notifications", True))
         self.settings["auto_launch"] = bool(self.settings.get("auto_launch", False))
         self.settings["enable_update_checks"] = bool(self.settings.get("enable_update_checks", True))
+        update_channel = str(self.settings.get("update_channel", UPDATE_CHANNEL)).strip().lower()
+        if update_channel not in {"stable", "beta"}:
+            update_channel = UPDATE_CHANNEL
+        self.settings["update_channel"] = update_channel
         self.settings["config_schema_version"] = CONFIG_SCHEMA_VERSION
+
+    def check_runtime_dependencies(self):
+        """Check required tools and track degraded runtime states."""
+        missing_tools = []
+        for tool_name, capability in REQUIRED_RUNTIME_TOOLS.items():
+            if shutil.which(tool_name) is None:
+                missing_tools.append(f"{tool_name} ({capability})")
+
+        self.runtime_health = {
+            "missing_tools": missing_tools,
+            "is_degraded": bool(missing_tools),
+            "checked_at": datetime.now().isoformat(),
+        }
+
+        if missing_tools:
+            self.log_runtime(
+                f"Runtime degraded; missing tools: {', '.join(missing_tools)}",
+                level="warning",
+            )
 
     def setup_runtime_logging(self):
         """Create a rotating runtime log for support and diagnostics."""
@@ -703,6 +742,8 @@ class BatteryAlertApp(rumps.App):
                           self.toggle_notifications),
             rumps.MenuItem("🆕 Update Checks: " + ("ON" if self.settings["enable_update_checks"] else "OFF"),
                           self.toggle_update_checks),
+            rumps.MenuItem("🧭 Update Channel: " + self.settings.get("update_channel", UPDATE_CHANNEL).upper(),
+                          self.toggle_update_channel),
             None,
             rumps.MenuItem("🚀 Launch at Startup: " + ("ON" if self.settings["auto_launch"] else "OFF"), 
                           self.toggle_autolaunch),
@@ -710,12 +751,14 @@ class BatteryAlertApp(rumps.App):
             rumps.MenuItem("View System Status", self.check_status),
             rumps.MenuItem("Version & Updates", self.show_version_and_updates),
             rumps.MenuItem("Run Update Check", self.check_for_updates_now),
+            rumps.MenuItem("Download Latest Release", self.download_latest_release),
             rumps.MenuItem("Run Release Validation", self.run_release_validation_now),
             rumps.MenuItem("Open Releases Page", self.open_releases_page),
             rumps.MenuItem("Run Test Alert", self.test_alert),
             rumps.MenuItem("View Alert History", self.view_alert_history),
             rumps.MenuItem("Copy Support Diagnostics", self.copy_diagnostics),
             rumps.MenuItem("Export Support Bundle", self.export_support_bundle),
+            rumps.MenuItem("Export Diagnostics-Only Bundle", self.export_diagnostics_bundle),
             rumps.MenuItem("Open Support Folder", self.open_config_folder),
             None,
             rumps.MenuItem("About", self.show_about),
@@ -750,6 +793,7 @@ class BatteryAlertApp(rumps.App):
         modes_text = ", ".join(alert_modes) if alert_modes else "none"
         autolaunch_text = "enabled" if self.settings["auto_launch"] else "disabled"
         updates_text = "enabled" if self.settings["enable_update_checks"] else "disabled"
+        update_channel = self.settings.get("update_channel", UPDATE_CHANNEL)
 
         return (
             f"Battery threshold: {self.settings['battery_threshold']}%\n"
@@ -757,7 +801,8 @@ class BatteryAlertApp(rumps.App):
             f"Alert cooldown: {self.settings['alert_cooldown_seconds']} seconds\n"
             f"Alert modes: {modes_text}\n"
             f"Launch at startup: {autolaunch_text}\n"
-            f"Update checks: {updates_text}"
+            f"Update checks: {updates_text}\n"
+            f"Update channel: {update_channel}"
         )
 
     def build_usage_summary(self):
@@ -775,6 +820,7 @@ class BatteryAlertApp(rumps.App):
             f"Last update check: {state.get('last_update_check_at') or 'never'}\n"
             f"Last update result: {state.get('last_update_status') or 'unknown'}\n"
             f"Latest known release: {state.get('last_known_release_version') or 'unknown'}\n"
+            f"Latest known release URL: {state.get('last_known_release_url') or 'unknown'}\n"
             f"Last crash report: {state.get('last_crash_report_at') or 'never'}\n"
             f"Last release validation: {state.get('last_release_validation_at') or 'never'}"
         )
@@ -787,6 +833,11 @@ class BatteryAlertApp(rumps.App):
 
         return (
             f"Current version: {APP_VERSION}\n"
+            f"Update channel: {self.settings.get('update_channel', UPDATE_CHANNEL)}\n"
+            f"Last checked: {state.get('last_update_check_at') or 'never'}\n"
+            f"Last result: {state.get('last_update_status') or 'unknown'}\n"
+            f"Latest known release: {state.get('last_known_release_version') or 'unknown'}\n"
+            f"Latest known release URL: {state.get('last_known_release_url') or 'unknown'}"
             f"Update channel: {UPDATE_CHANNEL}\n"
             f"Last checked: {state.get('last_update_check_at') or 'never'}\n"
             f"Last result: {state.get('last_update_status') or 'unknown'}\n"
@@ -810,6 +861,9 @@ class BatteryAlertApp(rumps.App):
             f"Last update result: {self.app_state.get('last_update_status') or 'unknown'}\n"
             f"Latest known release: {self.app_state.get('last_known_release_version') or 'unknown'}\n"
             f"Support bundles exported: {self.app_state.get('support_bundle_exports', 0)}\n"
+            f"Last crash report: {self.app_state.get('last_crash_report_at') or 'never'}\n"
+            f"Runtime degraded: {'yes' if self.runtime_health.get('is_degraded') else 'no'}\n"
+            f"Missing tools: {', '.join(self.runtime_health.get('missing_tools', [])) or 'none'}"
             f"Last crash report: {self.app_state.get('last_crash_report_at') or 'never'}"
         )
 
@@ -856,6 +910,9 @@ class BatteryAlertApp(rumps.App):
             f"notifications_enabled: {self.settings['enable_notifications']}\n"
             f"auto_launch: {self.settings['auto_launch']}\n"
             f"update_checks_enabled: {self.settings['enable_update_checks']}\n"
+            f"update_channel: {self.settings.get('update_channel', UPDATE_CHANNEL)}\n"
+            f"runtime_degraded: {self.runtime_health.get('is_degraded')}\n"
+            f"missing_runtime_tools: {', '.join(self.runtime_health.get('missing_tools', [])) or 'none'}\n"
             f"update_channel: {UPDATE_CHANNEL}\n"
             f"app_version: {APP_VERSION}\n"
             f"alert_history_entries: {len(self.alert_history)}\n"
@@ -866,10 +923,22 @@ class BatteryAlertApp(rumps.App):
             f"\nusage_summary:\n{self.build_usage_summary()}"
         )
 
-    def create_support_bundle_archive(self):
+    def cleanup_old_support_artifacts(self, keep_bundles=10, keep_crash_reports=10):
+        """Remove older support bundles and crash reports to keep support storage tidy."""
+        bundles = sorted(self.config_dir.glob("support_bundle_*.zip"))
+        for old_bundle in bundles[:-keep_bundles]:
+            old_bundle.unlink(missing_ok=True)
+
+        crash_reports_dir = getattr(self, "crash_reports_dir", self.config_dir / "crash_reports")
+        reports = sorted(crash_reports_dir.glob("crash_report_*.json")) if crash_reports_dir.exists() else []
+        for old_report in reports[:-keep_crash_reports]:
+            old_report.unlink(missing_ok=True)
+
+    def create_support_bundle_archive(self, preset="full"):
         """Create a zip bundle with config, history, diagnostics, and logs."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        bundle_path = self.config_dir / f"support_bundle_{timestamp}.zip"
+        preset_suffix = "diag" if preset == "diagnostics" else "full"
+        bundle_path = self.config_dir / f"support_bundle_{preset_suffix}_{timestamp}.zip"
         diagnostics_text = self.build_diagnostics_report()
         redacted_diagnostics = self.redact_text_for_support_share(diagnostics_text)
         latest_crash_report = self.get_latest_crash_report_path()
@@ -885,11 +954,19 @@ class BatteryAlertApp(rumps.App):
                 "diagnostics.txt",
                 "safe_share_guide.txt",
                 "manifest.json",
+            ],
+            "preset": preset,
+        }
+
+        if preset != "diagnostics":
+            manifest["included_files"].extend([
                 "config.json",
                 "alert_history.json",
                 "logs/battery_alert.log",
-            ],
-        }
+            ])
+
+        if latest_crash_report is not None:
+            manifest["included_files"].append("crash_reports/latest_crash_report.json")
 
         if latest_crash_report is not None:
             manifest["included_files"].append("crash_reports/latest_crash_report.json")
@@ -907,12 +984,13 @@ class BatteryAlertApp(rumps.App):
             zf.writestr("safe_share_guide.txt", safe_share_guide)
             zf.writestr("manifest.json", json.dumps(manifest, indent=2))
 
-            if self.config_file.exists():
-                zf.write(self.config_file, arcname="config.json")
-            if self.log_file.exists():
-                zf.write(self.log_file, arcname="alert_history.json")
-            if self.runtime_log_file.exists():
-                zf.write(self.runtime_log_file, arcname="logs/battery_alert.log")
+            if preset != "diagnostics":
+                if self.config_file.exists():
+                    zf.write(self.config_file, arcname="config.json")
+                if self.log_file.exists():
+                    zf.write(self.log_file, arcname="alert_history.json")
+                if self.runtime_log_file.exists():
+                    zf.write(self.runtime_log_file, arcname="logs/battery_alert.log")
 
             if latest_crash_report is not None and latest_crash_report.exists():
                 zf.writestr(
@@ -920,8 +998,13 @@ class BatteryAlertApp(rumps.App):
                     self.redact_text_for_support_share(latest_crash_report.read_text(encoding="utf-8")),
                 )
 
-            for rotated_log in self.runtime_log_file.parent.glob("battery_alert.log.*"):
-                zf.write(rotated_log, arcname=f"logs/{rotated_log.name}")
+            if preset != "diagnostics":
+                for rotated_log in self.runtime_log_file.parent.glob("battery_alert.log.*"):
+                    zf.write(rotated_log, arcname=f"logs/{rotated_log.name}")
+
+        self.cleanup_old_support_artifacts()
+        for rotated_log in self.runtime_log_file.parent.glob("battery_alert.log.*"):
+            zf.write(rotated_log, arcname=f"logs/{rotated_log.name}")
 
         return bundle_path
 
@@ -1058,7 +1141,19 @@ class BatteryAlertApp(rumps.App):
             print(f"[ERROR] Error toggling update checks: {e}")
             rumps.alert(f"Error: {e}", title="Error")
 
-    def record_update_check_result(self, status, latest_version=None, checked_at=None):
+    def toggle_update_channel(self, sender):
+        """Toggle update channel between stable and beta releases."""
+        try:
+            current = self.settings.get("update_channel", UPDATE_CHANNEL)
+            self.settings["update_channel"] = "beta" if current == "stable" else "stable"
+            self.save_config()
+            sender.title = f"🧭 Update Channel: {self.settings['update_channel'].upper()}"
+            self.show_maintenance_status(f"Update channel set to {self.settings['update_channel']}.")
+        except Exception as e:
+            print(f"[ERROR] Error toggling update channel: {e}")
+            rumps.alert(f"Error: {e}", title="Error")
+
+    def record_update_check_result(self, status, latest_version=None, latest_url=None, checked_at=None):
         """Persist update-check metadata for visibility and support diagnostics."""
         if not hasattr(self, "app_state") or not isinstance(self.app_state, dict):
             self.app_state = self.default_app_state_payload()
@@ -1068,6 +1163,8 @@ class BatteryAlertApp(rumps.App):
         self.app_state["last_update_status"] = status
         if latest_version:
             self.app_state["last_known_release_version"] = latest_version
+        if latest_url:
+            self.app_state["last_known_release_url"] = latest_url
         self.save_app_state()
 
     def _version_tuple(self, version):
@@ -1088,15 +1185,36 @@ class BatteryAlertApp(rumps.App):
         """Return True when latest_version is greater than current_version."""
         return self._version_tuple(latest_version) > self._version_tuple(current_version)
 
-    def get_latest_release_version(self):
-        """Fetch latest release tag from GitHub releases API."""
+    def get_latest_release(self):
+        """Fetch latest release details according to selected update channel."""
+        update_channel = self.settings.get("update_channel", UPDATE_CHANNEL)
+        api_url = LATEST_STABLE_RELEASE_API if update_channel == "stable" else RELEASES_API
         request = urllib.request.Request(
-            LATEST_RELEASE_API,
+            api_url,
             headers={"Accept": "application/vnd.github+json", "User-Agent": "battery-alert-monitor"}
         )
         with urllib.request.urlopen(request, timeout=6) as response:
             payload = json.loads(response.read().decode("utf-8"))
-        return str(payload.get("tag_name", "")).lstrip("v")
+
+        if update_channel == "stable":
+            release_payload = payload
+        else:
+            release_payload = {}
+            if isinstance(payload, list):
+                for candidate in payload:
+                    if isinstance(candidate, dict) and candidate.get("prerelease"):
+                        release_payload = candidate
+                        break
+                if not release_payload:
+                    for candidate in payload:
+                        if isinstance(candidate, dict):
+                            release_payload = candidate
+                            break
+
+        return {
+            "version": str(release_payload.get("tag_name", "")).lstrip("v"),
+            "url": str(release_payload.get("html_url", "")) or RELEASES_PAGE_URL,
+        }
 
     def _read_last_update_check(self):
         """Read last update-check timestamp from disk."""
@@ -1139,7 +1257,9 @@ class BatteryAlertApp(rumps.App):
 
         checked_at = datetime.now()
         try:
-            latest = self.get_latest_release_version()
+            latest_release = self.get_latest_release()
+            latest = latest_release.get("version", "")
+            latest_url = latest_release.get("url", RELEASES_PAGE_URL)
             self._write_last_update_check(checked_at)
 
             if not latest:
@@ -1151,11 +1271,29 @@ class BatteryAlertApp(rumps.App):
 
             if self.is_newer_version(latest, APP_VERSION):
                 message = f"Version {latest} is available. You are on {APP_VERSION}."
+                self.record_update_check_result(
+                    "update_available",
+                    latest_version=latest,
+                    latest_url=latest_url,
+                    checked_at=checked_at,
+                )
+                self.log_runtime(message)
+                return {"status": "update_available", "message": message}
+
+            self.record_update_check_result(
+                "up_to_date",
+                latest_version=latest,
+                latest_url=latest_url,
+                checked_at=checked_at,
+            )
+
+            # The following lines were previously mis-indented and duplicated; keeping only the correct logic
+            # If update is available, record and log
+            if self.is_newer_version(latest, APP_VERSION):
                 self.record_update_check_result("update_available", latest_version=latest, checked_at=checked_at)
                 self.log_runtime(message)
                 return {"status": "update_available", "message": message}
 
-            self.record_update_check_result("up_to_date", latest_version=latest, checked_at=checked_at)
             return {
                 "status": "up_to_date",
                 "message": f"You are up to date on version {APP_VERSION}."
@@ -1217,6 +1355,16 @@ class BatteryAlertApp(rumps.App):
             self.show_maintenance_status("Opened releases page.")
         except Exception as e:
             print(f"[ERROR] Error opening releases page: {e}")
+            rumps.alert(f"Error: {e}", title="Error")
+
+    def download_latest_release(self, _=None):
+        """Open the best known release URL for quick update handoff."""
+        try:
+            release_url = self.app_state.get("last_known_release_url") or RELEASES_PAGE_URL
+            subprocess.run(["open", release_url], check=False)
+            self.show_maintenance_status("Opened latest release download page.")
+        except Exception as e:
+            print(f"[ERROR] Error downloading latest release: {e}")
             rumps.alert(f"Error: {e}", title="Error")
     
     def setup_autolaunch(self):
@@ -1327,7 +1475,7 @@ class BatteryAlertApp(rumps.App):
     def export_support_bundle(self, _):
         """Generate a support zip bundle for troubleshooting."""
         try:
-            bundle_path = self.create_support_bundle_archive()
+            bundle_path = self.create_support_bundle_archive(preset="full")
             self.record_app_state_event("support_bundle_exports")
             self.record_app_state_event("last_support_bundle_export_at", datetime.now().isoformat())
             self.log_runtime(f"Support bundle exported to {bundle_path}")
@@ -1341,6 +1489,19 @@ class BatteryAlertApp(rumps.App):
         except Exception as e:
             self.log_runtime(f"Failed to export support bundle: {e}", level="warning")
             self.show_feedback("Error", f"Failed to export support bundle: {e}")
+
+    def export_diagnostics_bundle(self, _):
+        """Generate a diagnostics-only support bundle for lightweight triage."""
+        try:
+            bundle_path = self.create_support_bundle_archive(preset="diagnostics")
+            self.record_app_state_event("support_bundle_exports")
+            self.record_app_state_event("last_support_bundle_export_at", datetime.now().isoformat())
+            self.log_runtime(f"Diagnostics-only bundle exported to {bundle_path}")
+            subprocess.run(["open", "-R", str(bundle_path)], check=False)
+            self.show_maintenance_status("Diagnostics-only bundle export complete.")
+        except Exception as e:
+            self.log_runtime(f"Failed to export diagnostics-only bundle: {e}", level="warning")
+            self.show_feedback("Error", f"Failed to export diagnostics-only bundle: {e}")
 
     def build_release_validation_command(self):
         """Build the command used to run the release smoke test."""

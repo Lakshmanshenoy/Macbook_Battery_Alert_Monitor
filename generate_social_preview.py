@@ -49,6 +49,7 @@ def generate_image(width: int, height: int, outfile: str):
 
     def draw_battery(draw, x, y, w, h, charge=0.8):
         # Body
+        # Body
         radius = int(min(w, h) * 0.08)
         body_w = int(w * 0.9)
         body_h = int(h)

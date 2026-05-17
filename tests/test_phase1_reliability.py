@@ -66,10 +66,11 @@ def _new_app_for_unit_tests(tmp_path):
         "enable_notifications": True,
         "auto_launch": False,
         "enable_update_checks": True,
+        "update_channel": "stable",
     }
     app.alert_history = []
     app.app_state = {
-        "app_state_schema_version": 3,
+        "app_state_schema_version": 4,
         "first_launch_completed": False,
         "onboarding_shown_at": None,
         "release_checks_run": 0,
@@ -78,6 +79,7 @@ def _new_app_for_unit_tests(tmp_path):
         "last_update_check_at": None,
         "last_update_status": None,
         "last_known_release_version": None,
+        "last_known_release_url": None,
         "last_crash_report_at": None,
         "last_release_validation_at": None,
     }
@@ -86,6 +88,7 @@ def _new_app_for_unit_tests(tmp_path):
     app._last_alert_time = None
     app._last_power_state = None
     app._last_power_transition = None
+    app.runtime_health = {"missing_tools": [], "is_degraded": False, "checked_at": None}
     app.logger = None
     app._release_validation_in_progress = False
     return app
@@ -278,6 +281,39 @@ def test_create_support_bundle_archive_includes_latest_crash_report(tmp_path):
     assert "person@example.com" not in crash_text
 
 
+def test_create_support_bundle_archive_diagnostics_preset_is_minimal(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.config_file.write_text('{"battery_threshold": 20}')
+    app.log_file.write_text('[]')
+    app.runtime_log_file.parent.mkdir(parents=True, exist_ok=True)
+    app.runtime_log_file.write_text('runtime log line')
+
+    bundle_path = app.create_support_bundle_archive(preset="diagnostics")
+
+    with zipfile.ZipFile(bundle_path, "r") as zf:
+        names = set(zf.namelist())
+
+    assert "diagnostics.txt" in names
+    assert "manifest.json" in names
+    assert "config.json" not in names
+    assert "logs/battery_alert.log" not in names
+
+
+def test_cleanup_old_support_artifacts_keeps_recent_files(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.crash_reports_dir.mkdir(parents=True, exist_ok=True)
+
+    for index in range(4):
+        (app.config_dir / f"support_bundle_full_20260101_12000{index}.zip").write_text("bundle", encoding="utf-8")
+        (app.crash_reports_dir / f"crash_report_20260101_12000{index}.json").write_text("{}", encoding="utf-8")
+
+    app.cleanup_old_support_artifacts(keep_bundles=2, keep_crash_reports=2)
+
+    assert len(list(app.config_dir.glob("support_bundle_*.zip"))) == 2
+    assert len(list(app.crash_reports_dir.glob("crash_report_*.json"))) == 2
+
+
+ 
 def test_migrate_config_payload_adds_schema_and_defaults(tmp_path):
     app = _new_app_for_unit_tests(tmp_path)
     migrated = app.migrate_config_payload({"battery_threshold": 35})
@@ -298,14 +334,15 @@ def test_migrate_app_state_payload_adds_schema_and_defaults(tmp_path):
     assert migrated["last_support_bundle_export_at"] is None
     assert migrated["last_update_status"] is None
     assert migrated["last_known_release_version"] is None
+    assert migrated["last_known_release_url"] is None
     assert migrated["last_crash_report_at"] is None
-
 
 def test_build_release_visibility_summary_includes_update_state(tmp_path):
     app = _new_app_for_unit_tests(tmp_path)
     app.app_state["last_update_check_at"] = "2026-01-01T12:00:00"
     app.app_state["last_update_status"] = "up_to_date"
     app.app_state["last_known_release_version"] = "1.1.0"
+    app.app_state["last_known_release_url"] = "https://example.com/release"
 
     summary = app.build_release_visibility_summary()
 
@@ -313,6 +350,7 @@ def test_build_release_visibility_summary_includes_update_state(tmp_path):
     assert "Update channel: stable" in summary
     assert "Last result: up_to_date" in summary
     assert "Latest known release: 1.1.0" in summary
+    assert "Latest known release URL: https://example.com/release" in summary
 
 
 def test_build_status_summary_includes_power_and_support_context(tmp_path):
@@ -327,6 +365,17 @@ def test_build_status_summary_includes_power_and_support_context(tmp_path):
     assert "Last power transition: charging -> discharging" in summary
     assert "Support bundles exported: 2" in summary
     assert "Last update result: update_available" in summary
+    assert "Runtime degraded: no" in summary
+
+
+def test_check_runtime_dependencies_marks_degraded_when_missing(tmp_path, monkeypatch):
+    app = _new_app_for_unit_tests(tmp_path)
+
+    monkeypatch.setattr(battery_alert_module.shutil, "which", lambda tool: None)
+    app.check_runtime_dependencies()
+
+    assert app.runtime_health["is_degraded"] is True
+    assert app.runtime_health["missing_tools"]
 
 
 def test_write_crash_report_persists_latest_timestamp(tmp_path):
@@ -478,12 +527,23 @@ def test_build_release_validation_command_points_to_script(tmp_path):
 def test_check_for_updates_manual_empty_latest_shows_feedback(tmp_path, monkeypatch):
     app = _new_app_for_unit_tests(tmp_path)
 
-    monkeypatch.setattr(app, "get_latest_release_version", lambda: "")
+    monkeypatch.setattr(app, "get_latest_release", lambda: {"version": "", "url": ""})
     result = app.check_for_updates(manual=True)
 
     assert result["status"] == "unknown"
     assert "Could not determine" in result["message"]
     assert app.app_state["last_update_status"] == "unknown"
+
+
+def test_check_for_updates_uses_beta_channel_release_selection(tmp_path, monkeypatch):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.settings["update_channel"] = "beta"
+
+    monkeypatch.setattr(app, "get_latest_release", lambda: {"version": "1.2.0-beta", "url": "https://example.com/beta"})
+    result = app.check_for_updates(manual=True)
+
+    assert result["status"] == "update_available"
+    assert app.app_state["last_known_release_url"] == "https://example.com/beta"
 
 
 def test_export_support_bundle_shows_feedback(tmp_path, monkeypatch):
@@ -535,6 +595,21 @@ def test_open_releases_page_sends_feedback(tmp_path, monkeypatch):
 
     assert commands == [["open", battery_alert_module.RELEASES_PAGE_URL]]
     assert shown == [("Maintenance", "Opened releases page.")]
+
+
+def test_download_latest_release_uses_known_release_url(tmp_path, monkeypatch):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.app_state["last_known_release_url"] = "https://example.com/latest"
+    shown = []
+    commands = []
+
+    monkeypatch.setattr(app, "show_non_blocking_feedback", lambda title, message: shown.append((title, message)))
+    monkeypatch.setattr(battery_alert_module.subprocess, "run", lambda command, check=False: commands.append(command))
+
+    app.download_latest_release(None)
+
+    assert commands == [["open", "https://example.com/latest"]]
+    assert shown == [("Maintenance", "Opened latest release download page.")]
 
 
 def test_support_bundle_diagnostics_do_not_leak_home_path(tmp_path):
