@@ -1003,8 +1003,8 @@ class BatteryAlertApp(rumps.App):
                     zf.write(rotated_log, arcname=f"logs/{rotated_log.name}")
 
         self.cleanup_old_support_artifacts()
-            for rotated_log in self.runtime_log_file.parent.glob("battery_alert.log.*"):
-                zf.write(rotated_log, arcname=f"logs/{rotated_log.name}")
+        for rotated_log in self.runtime_log_file.parent.glob("battery_alert.log.*"):
+            zf.write(rotated_log, arcname=f"logs/{rotated_log.name}")
 
         return bundle_path
 
@@ -1154,7 +1154,6 @@ class BatteryAlertApp(rumps.App):
             rumps.alert(f"Error: {e}", title="Error")
 
     def record_update_check_result(self, status, latest_version=None, latest_url=None, checked_at=None):
-    def record_update_check_result(self, status, latest_version=None, checked_at=None):
         """Persist update-check metadata for visibility and support diagnostics."""
         if not hasattr(self, "app_state") or not isinstance(self.app_state, dict):
             self.app_state = self.default_app_state_payload()
@@ -1261,7 +1260,6 @@ class BatteryAlertApp(rumps.App):
             latest_release = self.get_latest_release()
             latest = latest_release.get("version", "")
             latest_url = latest_release.get("url", RELEASES_PAGE_URL)
-            latest = self.get_latest_release_version()
             self._write_last_update_check(checked_at)
 
             if not latest:
@@ -1288,11 +1286,14 @@ class BatteryAlertApp(rumps.App):
                 latest_url=latest_url,
                 checked_at=checked_at,
             )
+
+            # The following lines were previously mis-indented and duplicated; keeping only the correct logic
+            # If update is available, record and log
+            if self.is_newer_version(latest, APP_VERSION):
                 self.record_update_check_result("update_available", latest_version=latest, checked_at=checked_at)
                 self.log_runtime(message)
                 return {"status": "update_available", "message": message}
 
-            self.record_update_check_result("up_to_date", latest_version=latest, checked_at=checked_at)
             return {
                 "status": "up_to_date",
                 "message": f"You are up to date on version {APP_VERSION}."

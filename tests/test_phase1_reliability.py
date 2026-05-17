@@ -334,7 +334,6 @@ def test_migrate_app_state_payload_adds_schema_and_defaults(tmp_path):
     assert migrated["last_support_bundle_export_at"] is None
     assert migrated["last_update_status"] is None
     assert migrated["last_known_release_version"] is None
-def test_build_release_visibility_summary_includes_update_state(tmp_path):
     assert migrated["last_known_release_url"] is None
     assert migrated["last_crash_report_at"] is None
 
@@ -342,8 +341,8 @@ def test_build_release_visibility_summary_includes_update_state(tmp_path):
     app = _new_app_for_unit_tests(tmp_path)
     app.app_state["last_update_check_at"] = "2026-01-01T12:00:00"
     app.app_state["last_update_status"] = "up_to_date"
-        app.app_state["last_known_release_version"] = "1.1.0"
-        app.app_state["last_known_release_url"] = "https://example.com/release"
+    app.app_state["last_known_release_version"] = "1.1.0"
+    app.app_state["last_known_release_url"] = "https://example.com/release"
 
     summary = app.build_release_visibility_summary()
 
