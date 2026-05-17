@@ -34,11 +34,16 @@ class BatteryAlertApp(rumps.App):
         self.settings = {
             "battery_threshold": 20,
             "check_interval": 10,
+            "alert_cooldown_seconds": 900,
             "enable_sound": True,
             "enable_voice": True,
             "enable_notifications": True,
             "auto_launch": False
         }
+
+        self._below_threshold_prev = False
+        self._last_alert_time = None
+        self.stop_event = threading.Event()
         
         # Alert history
         self.alert_history = []
@@ -46,6 +51,9 @@ class BatteryAlertApp(rumps.App):
         # Load configuration
         self.load_config()
         self.load_alert_history()
+
+        # Ensure single-instance behavior before writing our PID
+        self.ensure_single_instance()
         
         # Save PID
         with open(self.pid_file, 'w') as f:
@@ -72,17 +80,57 @@ class BatteryAlertApp(rumps.App):
             try:
                 with open(self.config_file) as f:
                     loaded = json.load(f)
-                    self.settings.update(loaded)
+                    if isinstance(loaded, dict):
+                        self.settings.update(loaded)
+                self.validate_settings()
             except Exception as e:
                 print(f"[ERROR] Failed to load config: {e}")
         else:
             self.save_config()
+
+    def validate_settings(self):
+        """Validate and normalize settings read from disk."""
+        threshold = self.settings.get("battery_threshold", 20)
+        interval = self.settings.get("check_interval", 10)
+        cooldown = self.settings.get("alert_cooldown_seconds", 900)
+
+        try:
+            threshold = int(threshold)
+        except (TypeError, ValueError):
+            threshold = 20
+
+        try:
+            interval = int(interval)
+        except (TypeError, ValueError):
+            interval = 10
+
+        try:
+            cooldown = int(cooldown)
+        except (TypeError, ValueError):
+            cooldown = 900
+
+        self.settings["battery_threshold"] = max(1, min(100, threshold))
+        self.settings["check_interval"] = max(10, min(3600, interval))
+        self.settings["alert_cooldown_seconds"] = max(30, min(86400, cooldown))
+        self.settings["enable_sound"] = bool(self.settings.get("enable_sound", True))
+        self.settings["enable_voice"] = bool(self.settings.get("enable_voice", True))
+        self.settings["enable_notifications"] = bool(self.settings.get("enable_notifications", True))
+        self.settings["auto_launch"] = bool(self.settings.get("auto_launch", False))
+
+    def _write_json_atomic(self, file_path, payload):
+        """Write JSON atomically to avoid corruption from interrupted writes."""
+        temp_path = file_path.with_suffix(file_path.suffix + ".tmp")
+        with open(temp_path, 'w') as f:
+            json.dump(payload, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_path, file_path)
     
     def save_config(self):
         """Save configuration to file"""
         try:
-            with open(self.config_file, 'w') as f:
-                json.dump(self.settings, f, indent=2)
+            self.validate_settings()
+            self._write_json_atomic(self.config_file, self.settings)
         except Exception as e:
             print(f"[ERROR] Failed to save config: {e}")
     
@@ -91,17 +139,58 @@ class BatteryAlertApp(rumps.App):
         if self.log_file.exists():
             try:
                 with open(self.log_file) as f:
-                    self.alert_history = json.load(f)[-50:]  # Keep last 50 alerts
+                    loaded_history = json.load(f)
+                    if isinstance(loaded_history, list):
+                        self.alert_history = [
+                            alert for alert in loaded_history
+                            if isinstance(alert, dict)
+                            and "time" in alert
+                            and "battery_level" in alert
+                        ][-50:]  # Keep last 50 alerts
             except Exception as e:
                 print(f"[ERROR] Failed to load history: {e}")
     
     def save_alert_history(self):
         """Save alert history to file"""
         try:
-            with open(self.log_file, 'w') as f:
-                json.dump(self.alert_history[-100:], f, indent=2)  # Keep up to 100 alerts
+            self._write_json_atomic(self.log_file, self.alert_history[-100:])  # Keep up to 100 alerts
         except Exception as e:
             print(f"[ERROR] Failed to save history: {e}")
+
+    def _is_process_running(self, pid):
+        """Check if a process with the given PID exists."""
+        try:
+            os.kill(pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        except Exception:
+            return False
+
+    def ensure_single_instance(self):
+        """Prevent multiple app instances and clean stale PID files."""
+        if not self.pid_file.exists():
+            return
+
+        try:
+            existing_pid_raw = self.pid_file.read_text().strip()
+            if not existing_pid_raw:
+                self.pid_file.unlink(missing_ok=True)
+                return
+
+            existing_pid = int(existing_pid_raw)
+            if existing_pid == os.getpid():
+                return
+
+            if self._is_process_running(existing_pid):
+                raise RuntimeError("Battery Alert is already running.")
+
+            # Stale pid file
+            self.pid_file.unlink(missing_ok=True)
+        except ValueError:
+            self.pid_file.unlink(missing_ok=True)
     
     def get_battery_info(self):
         """Get current battery information"""
@@ -164,17 +253,43 @@ class BatteryAlertApp(rumps.App):
     
     def update_icon_loop(self):
         """Continuously update menu bar icon every 5 seconds"""
-        while self.monitoring:
+        while self.monitoring and not self.stop_event.is_set():
             try:
                 self.update_menu_icon()
-                threading.Event().wait(5)  # Update every 5 seconds
+                self.stop_event.wait(5)  # Update every 5 seconds
             except Exception as e:
                 print(f"[ERROR] Error in update_icon_loop: {e}")
-                threading.Event().wait(5)
+                self.stop_event.wait(5)
+
+    def should_trigger_alert(self, battery_info, now=None):
+        """Decide whether an alert should be triggered using edge + cooldown logic."""
+        now = now or datetime.now()
+
+        if not battery_info["is_discharging"]:
+            self._below_threshold_prev = False
+            return False
+
+        level = battery_info["level"]
+        below_threshold = level <= self.settings["battery_threshold"]
+        if not below_threshold:
+            self._below_threshold_prev = False
+            return False
+
+        crossed_threshold = not self._below_threshold_prev
+        cooldown_seconds = self.settings["alert_cooldown_seconds"]
+        cooldown_elapsed = (
+            self._last_alert_time is None
+            or (now - self._last_alert_time).total_seconds() >= cooldown_seconds
+        )
+
+        self._below_threshold_prev = True
+        return crossed_threshold or cooldown_elapsed
     
-    def trigger_alert(self, battery_level):
+    def trigger_alert(self, battery_level, now=None):
         """Trigger alert for low battery"""
-        alert_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now = now or datetime.now()
+        self._last_alert_time = now
+        alert_time = now.strftime("%Y-%m-%d %H:%M:%S")
         
         # Add to history
         self.alert_history.append({
@@ -225,21 +340,20 @@ class BatteryAlertApp(rumps.App):
     
     def monitor_battery(self):
         """Monitor battery in background thread"""
-        while self.monitoring:
+        while self.monitoring and not self.stop_event.is_set():
             try:
                 battery_info = self.get_battery_info()
                 level = battery_info["level"]
-                
-                # Check if alert should trigger (only when discharging and below threshold)
-                if (battery_info["is_discharging"] and 
-                    level <= self.settings["battery_threshold"]):
-                    self.trigger_alert(level)
-                
+
+                now = datetime.now()
+                if self.should_trigger_alert(battery_info, now=now):
+                    self.trigger_alert(level, now=now)
+
                 # Wait before next check
-                threading.Event().wait(self.settings["check_interval"])
+                self.stop_event.wait(self.settings["check_interval"])
             except Exception as e:
                 print(f"[ERROR] Error in monitor_battery: {e}")
-                threading.Event().wait(10)
+                self.stop_event.wait(10)
     
     def setup_menu(self):
         """Setup the menu bar items"""
@@ -505,18 +619,19 @@ Keep your device powered and healthy! 🔋
     def quit_app(self, _):
         """Quit the application"""
         try:
-            # Stop the monitoring thread
             self.monitoring = False
-            # Give thread time to stop
-            import time
-            time.sleep(0.5)
-            # Force exit the application
-            import os
-            os._exit(0)
+            self.stop_event.set()
+
+            if hasattr(self, "monitor_thread") and self.monitor_thread.is_alive():
+                self.monitor_thread.join(timeout=2)
+            if hasattr(self, "icon_update_thread") and self.icon_update_thread.is_alive():
+                self.icon_update_thread.join(timeout=2)
+
+            self.pid_file.unlink(missing_ok=True)
+            rumps.quit_application()
         except Exception as e:
             print(f"[ERROR] Error quitting: {e}")
-            import os
-            os._exit(1)
+            rumps.quit_application()
 
 
 def main():

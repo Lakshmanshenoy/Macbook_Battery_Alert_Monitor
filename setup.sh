@@ -16,10 +16,18 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-PYTHON_VERSION=
-$(python3 --version | awk '{print $2}')
+# Corrected the syntax for assigning Python version to the variable
+PYTHON_VERSION=$(python3 --version | awk '{print $2}')
 echo "✅ Python $PYTHON_VERSION found"
 echo ""
+
+# Enforce Python version
+REQUIRED_PYTHON_VERSION="3.10"
+if [[ "$PYTHON_VERSION" != "$REQUIRED_PYTHON_VERSION" ]]; then
+    echo "❌ Python version mismatch. Required: $REQUIRED_PYTHON_VERSION, Found: $PYTHON_VERSION"
+    echo "💡 Please install Python $REQUIRED_PYTHON_VERSION and try again."
+    exit 1
+fi
 
 # Create virtual environment (optional but recommended)
 echo "📦 Setting up dependencies..."
