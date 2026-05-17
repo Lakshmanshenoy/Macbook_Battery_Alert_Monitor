@@ -40,6 +40,6 @@ def test_smoke_script_main_passes(monkeypatch, tmp_path):
     app.runtime_log_file.write_text("runtime log line")
 
     monkeypatch.setattr(module, "new_app", lambda: (app_module, app))
-    monkeypatch.setattr(app, "get_latest_release_version", lambda: "1.2.0")
+    monkeypatch.setattr(app, "get_latest_release", lambda: {"version": "1.2.0", "url": "https://example.com/release/1.2.0"})
 
     assert module.main() == 0

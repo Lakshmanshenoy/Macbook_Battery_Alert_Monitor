@@ -6,20 +6,25 @@ Use this runbook when preparing a Battery Alert Monitor release.
 
 1. Ensure the working tree is clean.
 2. Run `python3 scripts/run_pre_release_checks.py`.
-3. Run `bash build.sh` and `bash create_dmg.sh` if you want a local packaging sanity check before tagging.
-4. Confirm `RELEASE_DRAFT.md` is up to date.
+3. Run `python3 scripts/generate_release_notes.py --to-ref HEAD` and review generated notes.
+4. Run `python3 scripts/ship_checklist.py --version X.Y.Z --skip-checks` for final ship guidance.
+5. Run `bash build.sh` and `bash create_dmg.sh` if you want a local packaging sanity check before tagging.
+6. Confirm `RELEASE_DRAFT.md` is up to date.
 
 ## Dry run
 
 1. Trigger the release workflow with `workflow_dispatch`.
 2. Confirm build, checksum generation, artifact upload, and verification steps all pass.
-3. Download the uploaded workflow artifact and inspect `Battery Alert.dmg`, `checksums.txt`, and signing outputs.
+3. Confirm `release_manifest.json` is generated and uploaded with release artifacts.
+4. Download the uploaded workflow artifact and inspect `Battery Alert.dmg`, `checksums.txt`, and signing outputs.
 
 ## Tagged release
 
 1. Create and push a tag in the form `vX.Y.Z`.
 2. Watch the release workflow for build, signing, notarization, checksum, and upload steps.
-3. Confirm the published GitHub release contains the DMG, checksums, signature, and maintainer public key.
+3. Confirm the published GitHub release contains the DMG, checksums, signature, maintainer public key, and `release_manifest.json`.
+4. Confirm the post-release verification workflow passes for the published tag.
+5. Optionally run `python3 scripts/verify_published_release.py --owner <owner> --repo <repo> --tag vX.Y.Z --token <token>` locally.
 
 ## Rollback
 
