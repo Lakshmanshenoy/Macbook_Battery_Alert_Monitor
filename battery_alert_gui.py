@@ -10,9 +10,18 @@ import threading
 import subprocess
 import sys
 import platform
+import logging
+from logging.handlers import RotatingFileHandler
+import urllib.request
+import urllib.error
+import zipfile
 from datetime import datetime
 from pathlib import Path
 import rumps
+
+
+APP_VERSION = "1.1.0"
+LATEST_RELEASE_API = "https://api.github.com/repos/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/releases/latest"
 
 
 class BatteryAlertApp(rumps.App):
@@ -27,6 +36,8 @@ class BatteryAlertApp(rumps.App):
         self.config_file = self.config_dir / "config.json"
         self.log_file = self.config_dir / "alert_history.json"
         self.pid_file = self.config_dir / "app.pid"
+        self.runtime_log_file = self.config_dir / "logs" / "battery_alert.log"
+        self.update_state_file = self.config_dir / "update_state.json"
         
         # Create config directory
         self.config_dir.mkdir(exist_ok=True)
@@ -39,15 +50,22 @@ class BatteryAlertApp(rumps.App):
             "enable_sound": True,
             "enable_voice": True,
             "enable_notifications": True,
-            "auto_launch": False
+            "auto_launch": False,
+            "enable_update_checks": True
         }
 
         self._below_threshold_prev = False
         self._last_alert_time = None
+        self._last_power_state = None
+        self._update_check_in_progress = False
         self.stop_event = threading.Event()
         
         # Alert history
         self.alert_history = []
+        self.logger = None
+
+        # Logging should start before other runtime operations.
+        self.setup_runtime_logging()
         
         # Load configuration
         self.load_config()
@@ -74,6 +92,9 @@ class BatteryAlertApp(rumps.App):
         
         # Update icon with battery level immediately
         self.update_menu_icon()
+
+        # Non-blocking update check on startup.
+        self.check_for_updates(manual=False)
     
     def load_config(self):
         """Load configuration from file"""
@@ -117,6 +138,68 @@ class BatteryAlertApp(rumps.App):
         self.settings["enable_voice"] = bool(self.settings.get("enable_voice", True))
         self.settings["enable_notifications"] = bool(self.settings.get("enable_notifications", True))
         self.settings["auto_launch"] = bool(self.settings.get("auto_launch", False))
+        self.settings["enable_update_checks"] = bool(self.settings.get("enable_update_checks", True))
+
+    def setup_runtime_logging(self):
+        """Create a rotating runtime log for support and diagnostics."""
+        try:
+            self.runtime_log_file.parent.mkdir(parents=True, exist_ok=True)
+            logger = logging.getLogger("battery_alert")
+            logger.setLevel(logging.INFO)
+            logger.propagate = False
+
+            if not logger.handlers:
+                handler = RotatingFileHandler(
+                    self.runtime_log_file,
+                    maxBytes=1_000_000,
+                    backupCount=3,
+                    encoding="utf-8"
+                )
+                handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+                logger.addHandler(handler)
+
+            self.logger = logger
+            self.log_runtime("Runtime logging initialized")
+        except Exception as e:
+            print(f"[ERROR] Failed to initialize runtime logging: {e}")
+
+    def log_runtime(self, message, level="info"):
+        """Log runtime messages to both console and rotating log file."""
+        print(f"[RUNTIME] {message}")
+        if not self.logger:
+            return
+
+        log_method = getattr(self.logger, level, self.logger.info)
+        log_method(message)
+
+    def show_feedback(self, title, message):
+        """Show user-facing feedback reliably across rumps versions."""
+        try:
+            rumps.alert(title, message)
+            return
+        except TypeError:
+            # Some versions can prefer keyword title ordering.
+            try:
+                rumps.alert(message, title=title)
+                return
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+        # Last-resort fallback so user still gets context in logs.
+        self.log_runtime(f"{title}: {message}")
+
+    def show_non_blocking_feedback(self, title, message):
+        """Show non-blocking user feedback via macOS notification."""
+        try:
+            safe_title = title.replace('"', "'")
+            safe_message = message.replace('"', "'")
+            apple_script = f'display notification "{safe_message}" with title "{safe_title}"'
+            subprocess.run(["osascript", "-e", apple_script], capture_output=True, text=True)
+        except Exception as e:
+            self.log_runtime(f"Notification fallback failed: {e}", level="warning")
+        self.log_runtime(f"{title}: {message}")
 
     def _write_json_atomic(self, file_path, payload):
         """Write JSON atomically to avoid corruption from interrupted writes."""
@@ -346,6 +429,13 @@ class BatteryAlertApp(rumps.App):
                 battery_info = self.get_battery_info()
                 level = battery_info["level"]
 
+                current_power_state = "charging" if battery_info["is_charging"] else "discharging"
+                if self._last_power_state and self._last_power_state != current_power_state:
+                    self.log_runtime(
+                        f"Power source changed: {self._last_power_state} -> {current_power_state} at {level}%"
+                    )
+                self._last_power_state = current_power_state
+
                 now = datetime.now()
                 if self.should_trigger_alert(battery_info, now=now):
                     self.trigger_alert(level, now=now)
@@ -370,14 +460,18 @@ class BatteryAlertApp(rumps.App):
                           self.toggle_voice),
             rumps.MenuItem("🔔 Notifications: " + ("ON" if self.settings["enable_notifications"] else "OFF"), 
                           self.toggle_notifications),
+            rumps.MenuItem("🆕 Update Checks: " + ("ON" if self.settings["enable_update_checks"] else "OFF"),
+                          self.toggle_update_checks),
             None,
             rumps.MenuItem("🚀 Launch at Startup: " + ("ON" if self.settings["auto_launch"] else "OFF"), 
                           self.toggle_autolaunch),
             None,
             rumps.MenuItem("Check Status", self.check_status),
+            rumps.MenuItem("Check for Updates", self.check_for_updates_now),
             rumps.MenuItem("Test Alert Now", self.test_alert),
             rumps.MenuItem("View Alert History", self.view_alert_history),
             rumps.MenuItem("Copy Diagnostics", self.copy_diagnostics),
+            rumps.MenuItem("Export Support Bundle", self.export_support_bundle),
             rumps.MenuItem("Open Config Folder", self.open_config_folder),
             None,
             rumps.MenuItem("About", self.show_about),
@@ -411,13 +505,15 @@ class BatteryAlertApp(rumps.App):
 
         modes_text = ", ".join(alert_modes) if alert_modes else "none"
         autolaunch_text = "enabled" if self.settings["auto_launch"] else "disabled"
+        updates_text = "enabled" if self.settings["enable_update_checks"] else "disabled"
 
         return (
             f"Battery threshold: {self.settings['battery_threshold']}%\n"
             f"Check interval: {self.settings['check_interval']} seconds\n"
             f"Alert cooldown: {self.settings['alert_cooldown_seconds']} seconds\n"
             f"Alert modes: {modes_text}\n"
-            f"Launch at startup: {autolaunch_text}"
+            f"Launch at startup: {autolaunch_text}\n"
+            f"Update checks: {updates_text}"
         )
 
     def build_diagnostics_report(self, battery_info=None):
@@ -440,11 +536,35 @@ class BatteryAlertApp(rumps.App):
             f"voice_enabled: {self.settings['enable_voice']}\n"
             f"notifications_enabled: {self.settings['enable_notifications']}\n"
             f"auto_launch: {self.settings['auto_launch']}\n"
+            f"update_checks_enabled: {self.settings['enable_update_checks']}\n"
+            f"app_version: {APP_VERSION}\n"
             f"alert_history_entries: {len(self.alert_history)}\n"
             f"last_alert: {last_alert}\n"
             f"config_file: {self.config_file}\n"
-            f"log_file: {self.log_file}"
+            f"log_file: {self.log_file}\n"
+            f"runtime_log_file: {self.runtime_log_file}"
         )
+
+    def create_support_bundle_archive(self):
+        """Create a zip bundle with config, history, diagnostics, and logs."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        bundle_path = self.config_dir / f"support_bundle_{timestamp}.zip"
+        diagnostics_text = self.build_diagnostics_report()
+
+        with zipfile.ZipFile(bundle_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("diagnostics.txt", diagnostics_text)
+
+            if self.config_file.exists():
+                zf.write(self.config_file, arcname="config.json")
+            if self.log_file.exists():
+                zf.write(self.log_file, arcname="alert_history.json")
+            if self.runtime_log_file.exists():
+                zf.write(self.runtime_log_file, arcname="logs/battery_alert.log")
+
+            for rotated_log in self.runtime_log_file.parent.glob("battery_alert.log.*"):
+                zf.write(rotated_log, arcname=f"logs/{rotated_log.name}")
+
+        return bundle_path
 
     def update_boolean_setting(self, key, sender, label, enabled_text="ON", disabled_text="OFF"):
         """Toggle a boolean setting and update the menu label."""
@@ -568,6 +688,138 @@ class BatteryAlertApp(rumps.App):
         except Exception as e:
             print(f"[ERROR] Error toggling auto-launch: {e}")
             rumps.alert(f"Error: {e}", title="Error")
+
+    def toggle_update_checks(self, sender):
+        """Toggle automatic update checks."""
+        try:
+            self.update_boolean_setting("enable_update_checks", sender, "🆕 Update Checks")
+            status = "enabled" if self.settings["enable_update_checks"] else "disabled"
+            self.log_runtime(f"Automatic update checks {status}")
+        except Exception as e:
+            print(f"[ERROR] Error toggling update checks: {e}")
+            rumps.alert(f"Error: {e}", title="Error")
+
+    def _version_tuple(self, version):
+        """Normalize semantic-ish version strings for comparison."""
+        cleaned = version.lower().strip().lstrip("v")
+        cleaned = cleaned.split("-")[0]
+        parts = []
+        for token in cleaned.split("."):
+            try:
+                parts.append(int(token))
+            except ValueError:
+                parts.append(0)
+        while len(parts) < 3:
+            parts.append(0)
+        return tuple(parts[:3])
+
+    def is_newer_version(self, latest_version, current_version):
+        """Return True when latest_version is greater than current_version."""
+        return self._version_tuple(latest_version) > self._version_tuple(current_version)
+
+    def get_latest_release_version(self):
+        """Fetch latest release tag from GitHub releases API."""
+        request = urllib.request.Request(
+            LATEST_RELEASE_API,
+            headers={"Accept": "application/vnd.github+json", "User-Agent": "battery-alert-monitor"}
+        )
+        with urllib.request.urlopen(request, timeout=6) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        return str(payload.get("tag_name", "")).lstrip("v")
+
+    def _read_last_update_check(self):
+        """Read last update-check timestamp from disk."""
+        if not self.update_state_file.exists():
+            return None
+        try:
+            with open(self.update_state_file) as f:
+                payload = json.load(f)
+            timestamp = payload.get("last_checked")
+            if not timestamp:
+                return None
+            return datetime.fromisoformat(timestamp)
+        except Exception:
+            return None
+
+    def _write_last_update_check(self, timestamp):
+        """Persist last update-check timestamp."""
+        self._write_json_atomic(self.update_state_file, {"last_checked": timestamp.isoformat()})
+
+    def should_check_for_updates(self, now=None, minimum_hours=24):
+        """Throttle automatic update checks to avoid network chatter."""
+        now = now or datetime.now()
+        previous = self._read_last_update_check()
+        if previous is None:
+            return True
+        return (now - previous).total_seconds() >= minimum_hours * 3600
+
+    def check_for_updates(self, manual=False):
+        """Check whether a newer release is available on GitHub."""
+        if not manual and not self.settings.get("enable_update_checks", True):
+            return {"status": "disabled", "message": "Automatic update checks are disabled."}
+
+        if not manual and not self.should_check_for_updates():
+            return {"status": "throttled", "message": "Automatic update check throttled."}
+
+        try:
+            latest = self.get_latest_release_version()
+            self._write_last_update_check(datetime.now())
+
+            if not latest:
+                return {
+                    "status": "unknown",
+                    "message": "Could not determine the latest release version right now. Please try again shortly."
+                }
+
+            if self.is_newer_version(latest, APP_VERSION):
+                message = f"Version {latest} is available. You are on {APP_VERSION}."
+                self.log_runtime(message)
+                return {"status": "update_available", "message": message}
+
+            return {
+                "status": "up_to_date",
+                "message": f"You are up to date on version {APP_VERSION}."
+            }
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
+            self.log_runtime(f"Update check failed: {e}", level="warning")
+            return {
+                "status": "failed",
+                "message": "Unable to check updates right now. Please try again later."
+            }
+        except Exception as e:
+            self.log_runtime(f"Unexpected update check error: {e}", level="warning")
+            return {
+                "status": "failed",
+                "message": "Unable to check updates right now. Please try again later."
+            }
+
+    def _run_manual_update_check(self):
+        """Run update check in background and send non-blocking completion feedback."""
+        try:
+            result = self.check_for_updates(manual=True)
+            status = result.get("status", "failed")
+            message = result.get("message", "Unable to check updates right now. Please try again later.")
+
+            if status == "update_available":
+                self.show_non_blocking_feedback("Update Available", message)
+            elif status == "up_to_date":
+                self.show_non_blocking_feedback("No Updates", message)
+            elif status == "unknown":
+                self.show_non_blocking_feedback("Update Check", message)
+            else:
+                self.show_non_blocking_feedback("Update Check Failed", message)
+        finally:
+            self._update_check_in_progress = False
+
+    def check_for_updates_now(self, _):
+        """Manual update check entrypoint for menu action."""
+        if self._update_check_in_progress:
+            self.show_non_blocking_feedback("Update Check", "An update check is already in progress.")
+            return
+
+        self._update_check_in_progress = True
+        self.show_non_blocking_feedback("Update Check", "Checking for updates in the background...")
+        threading.Thread(target=self._run_manual_update_check, daemon=True).start()
     
     def setup_autolaunch(self):
         """Setup or remove autolaunch using LaunchAgent"""
@@ -683,6 +935,17 @@ Alert Cooldown: {self.settings['alert_cooldown_seconds']} seconds"""
             print(f"[ERROR] Error in copy_diagnostics: {e}")
             rumps.alert(f"Error: {e}", title="Error")
 
+    def export_support_bundle(self, _):
+        """Generate a support zip bundle for troubleshooting."""
+        try:
+            bundle_path = self.create_support_bundle_archive()
+            self.log_runtime(f"Support bundle exported to {bundle_path}")
+            subprocess.run(["open", "-R", str(bundle_path)], check=False)
+            self.show_feedback("Support Bundle Exported", f"Support bundle created at:\n{bundle_path}")
+        except Exception as e:
+            self.log_runtime(f"Failed to export support bundle: {e}", level="warning")
+            self.show_feedback("Error", f"Failed to export support bundle: {e}")
+
     def open_config_folder(self, _):
         """Open the configuration directory in Finder."""
         try:
@@ -694,7 +957,7 @@ Alert Cooldown: {self.settings['alert_cooldown_seconds']} seconds"""
     def show_about(self, _):
         """Show about dialog"""
         try:
-            about_text = """Battery Alert Monitor v1.0
+            about_text = f"""Battery Alert Monitor v{APP_VERSION}
 
 A professional battery monitoring tool for macOS.
 
@@ -708,6 +971,7 @@ Keep your device powered and healthy! 🔋
     def quit_app(self, _):
         """Quit the application"""
         try:
+            self.log_runtime("Application shutdown requested")
             self.monitoring = False
             self.stop_event.set()
 
