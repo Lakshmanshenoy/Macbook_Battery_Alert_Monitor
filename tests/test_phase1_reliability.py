@@ -313,8 +313,7 @@ def test_cleanup_old_support_artifacts_keeps_recent_files(tmp_path):
     assert len(list(app.crash_reports_dir.glob("crash_report_*.json"))) == 2
 
 
-=======
->>>>>>> origin/main
+ 
 def test_migrate_config_payload_adds_schema_and_defaults(tmp_path):
     app = _new_app_for_unit_tests(tmp_path)
     migrated = app.migrate_config_payload({"battery_threshold": 35})
@@ -335,9 +334,7 @@ def test_migrate_app_state_payload_adds_schema_and_defaults(tmp_path):
     assert migrated["last_support_bundle_export_at"] is None
     assert migrated["last_update_status"] is None
     assert migrated["last_known_release_version"] is None
-<<<<<<< HEAD
     assert migrated["last_known_release_url"] is None
-=======
 >>>>>>> origin/main
     assert migrated["last_crash_report_at"] is None
 
