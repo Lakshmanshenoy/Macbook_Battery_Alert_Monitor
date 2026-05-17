@@ -19,6 +19,7 @@ Use this checklist before cutting a tagged release for Battery Alert Monitor.
 
 - Build the app bundle with `bash build.sh`.
 - Build the DMG with `bash create_dmg.sh`.
+- Run the release workflow via `workflow_dispatch` as a dry run and confirm artifacts are uploaded.
 - If signing secrets are configured, confirm codesign and notarization steps succeed.
 
 ## Release Artifacts
@@ -29,5 +30,5 @@ Use this checklist before cutting a tagged release for Battery Alert Monitor.
 
 ## Support Readiness
 
-- Export a support bundle and verify it contains diagnostics, config, alert history, and logs.
+- Export a support bundle and verify it contains diagnostics, config, alert history, logs, `manifest.json`, and `safe_share_guide.txt`.
 - Confirm the runtime log rotates under `~/.battery_alert/logs/`.

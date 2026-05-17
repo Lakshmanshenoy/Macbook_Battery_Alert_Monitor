@@ -74,6 +74,7 @@ def new_app():
     app.update_state_file = temp_dir / "update_state.json"
     app.app_state_file = temp_dir / "app_state.json"
     app.settings = {
+        "config_schema_version": 2,
         "battery_threshold": 20,
         "check_interval": 10,
         "alert_cooldown_seconds": 60,
@@ -85,6 +86,7 @@ def new_app():
     }
     app.alert_history = []
     app.app_state = {
+        "app_state_schema_version": 2,
         "first_launch_completed": False,
         "onboarding_shown_at": None,
         "release_checks_run": 0,
@@ -120,7 +122,14 @@ def main() -> int:
 
     with zipfile.ZipFile(bundle_path, "r") as archive:
         names = set(archive.namelist())
-    required = {"diagnostics.txt", "config.json", "alert_history.json", "logs/battery_alert.log"}
+    required = {
+        "diagnostics.txt",
+        "safe_share_guide.txt",
+        "manifest.json",
+        "config.json",
+        "alert_history.json",
+        "logs/battery_alert.log",
+    }
     if not required.issubset(names):
         print(f"Smoke test failed: support bundle missing files: {sorted(required - names)}")
         return 1
