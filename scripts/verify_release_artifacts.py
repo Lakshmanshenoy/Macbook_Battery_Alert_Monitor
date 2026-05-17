@@ -44,6 +44,11 @@ def verify_artifact(artifact_path: Path, checksums_path: Path) -> tuple[bool, st
 
     checksums = parse_checksums_file(checksums_path)
     expected = checksums.get(artifact_path.name)
+    if expected is None:
+        for entry_name, digest in checksums.items():
+            if Path(entry_name).name == artifact_path.name:
+                expected = digest
+                break
     if not expected:
         return False, f"No checksum entry for {artifact_path.name} in {checksums_path}"
 
