@@ -16,3 +16,7 @@ def test_phase9_release_helper_scripts_exist():
     assert Path("scripts/generate_release_notes.py").exists()
     assert Path("scripts/verify_published_release.py").exists()
     assert Path("scripts/ship_checklist.py").exists()
+
+def test_phase10_quality_gate_scripts_exist():
+    assert Path("scripts/checks.sh").exists()
+    assert Path("scripts/fix_indentation_and_conflicts.py").exists()
