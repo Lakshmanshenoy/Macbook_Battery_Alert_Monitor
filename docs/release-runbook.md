@@ -6,12 +6,13 @@ Use this runbook when preparing a Battery Alert Monitor release.
 
 1. Ensure the working tree is clean.
 2. Run `bash scripts/checks.sh` as the primary local quality gate.
-3. Run `python3 scripts/run_pre_release_checks.py`.
-4. Run `python3 scripts/generate_release_notes.py --to-ref HEAD` and review generated notes.
-5. Run `python3 scripts/ship_checklist.py --version X.Y.Z --skip-checks` for final ship guidance.
-6. Run `bash build.sh` and `bash create_dmg.sh` if you want a local packaging sanity check before tagging.
-7. Confirm `RELEASE_DRAFT.md` is up to date.
-8. Verify support export contains rotated runtime logs when present (`logs/battery_alert.log.*`).
+3. Optionally run `bash scripts/checks.sh --ci` to emulate non-mutating CI behavior.
+4. Run `python3 scripts/run_pre_release_checks.py`.
+5. Run `python3 scripts/generate_release_notes.py --to-ref HEAD` and review generated notes.
+6. Run `python3 scripts/ship_checklist.py --version X.Y.Z --skip-checks` for final ship guidance.
+7. Run `bash build.sh` and `bash create_dmg.sh` if you want a local packaging sanity check before tagging.
+8. Confirm `RELEASE_DRAFT.md` is up to date.
+9. Verify support export contains rotated runtime logs when present (`logs/battery_alert.log.*`).
 
 ## Dry run
 

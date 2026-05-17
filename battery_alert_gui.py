@@ -644,7 +644,7 @@ class BatteryAlertApp(rumps.App):
             # Icon selection based on battery level
             if battery_info["is_charging"]:
                 icon = "🔌"
-                print(f"[ICON] Charging detected - using 🔌")
+                print("[ICON] Charging detected - using 🔌")
             elif level > 50:
                 icon = "🔋"
             elif level > 20:
@@ -1453,14 +1453,14 @@ class BatteryAlertApp(rumps.App):
                 subprocess.run(['launchctl', 'load', str(plist_file)], 
                              capture_output=True)
                 print(f"[AUTOLAUNCH] Enabled - LaunchAgent plist: {plist_file}")
-                print(f"[TIP] To see it with app name in login items, add Battery Alert.app to System Settings > General > Login Items")
+                print("[TIP] To see it with app name in login items, add Battery Alert.app to System Settings > General > Login Items")
             else:
                 # Remove autolaunch
                 if plist_file.exists():
                     subprocess.run(['launchctl', 'unload', str(plist_file)], 
                                  capture_output=True)
                     plist_file.unlink()
-                    print(f"[AUTOLAUNCH] Disabled - LaunchAgent removed")
+                    print("[AUTOLAUNCH] Disabled - LaunchAgent removed")
         except Exception as e:
             print(f"[ERROR] Failed to setup autolaunch: {e}")
     

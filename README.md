@@ -248,6 +248,12 @@ If these secrets are not set, the workflow still produces unsigned release artif
 - Version/status/diagnostics summaries are de-duplicated to improve support signal quality.
 - Runtime resilience tests now cover update-state recovery and rotated-log bundling behavior.
 
+## Quality Hardening (Phase 11.1)
+
+- CI now runs `bash scripts/checks.sh --ci` in non-mutating mode to fail fast on fixer-detectable issues.
+- CI test matrix now validates both `macos-latest` and `ubuntu-latest` across Python `3.10` and `3.11`.
+- CI adds a lightweight static/security gate (`ruff` critical rules + `pip-audit`) before test execution.
+
 ## System Requirements
 
 - **OS:** macOS 10.13 or later
@@ -311,6 +317,7 @@ For issues or feature requests, please check:
 
 Before cutting a tagged release, run:
 - `bash scripts/checks.sh`
+- `bash scripts/checks.sh --ci` (optional preview of CI behavior)
 - `pytest -q`
 - `python3 scripts/release_smoke_test.py`
 - `python3 scripts/run_pre_release_checks.py`
