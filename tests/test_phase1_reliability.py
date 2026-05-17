@@ -240,16 +240,12 @@ def test_create_support_bundle_archive_contains_core_files(tmp_path):
 
 def test_check_for_updates_manual_empty_latest_shows_feedback(tmp_path, monkeypatch):
     app = _new_app_for_unit_tests(tmp_path)
-    shown = []
 
     monkeypatch.setattr(app, "get_latest_release_version", lambda: "")
-    monkeypatch.setattr(app, "show_feedback", lambda title, message: shown.append((title, message)))
+    result = app.check_for_updates(manual=True)
 
-    app.check_for_updates(manual=True)
-
-    assert shown
-    assert shown[0][0] == "Update Check"
-    assert "Could not determine" in shown[0][1]
+    assert result["status"] == "unknown"
+    assert "Could not determine" in result["message"]
 
 
 def test_export_support_bundle_shows_feedback(tmp_path, monkeypatch):
@@ -269,3 +265,21 @@ def test_export_support_bundle_shows_feedback(tmp_path, monkeypatch):
     assert shown
     assert shown[0][0] == "Support Bundle Exported"
     assert "Support bundle created at:" in shown[0][1]
+
+
+def test_run_manual_update_check_sends_non_blocking_feedback(tmp_path, monkeypatch):
+    app = _new_app_for_unit_tests(tmp_path)
+    shown = []
+
+    monkeypatch.setattr(
+        app,
+        "check_for_updates",
+        lambda manual=False: {"status": "up_to_date", "message": "You are up to date on version 1.1.0."}
+    )
+    monkeypatch.setattr(app, "show_non_blocking_feedback", lambda title, message: shown.append((title, message)))
+    app._update_check_in_progress = True
+
+    app._run_manual_update_check()
+
+    assert shown == [("No Updates", "You are up to date on version 1.1.0.")]
+    assert app._update_check_in_progress is False

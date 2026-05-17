@@ -57,6 +57,7 @@ class BatteryAlertApp(rumps.App):
         self._below_threshold_prev = False
         self._last_alert_time = None
         self._last_power_state = None
+        self._update_check_in_progress = False
         self.stop_event = threading.Event()
         
         # Alert history
@@ -187,6 +188,17 @@ class BatteryAlertApp(rumps.App):
             pass
 
         # Last-resort fallback so user still gets context in logs.
+        self.log_runtime(f"{title}: {message}")
+
+    def show_non_blocking_feedback(self, title, message):
+        """Show non-blocking user feedback via macOS notification."""
+        try:
+            safe_title = title.replace('"', "'")
+            safe_message = message.replace('"', "'")
+            apple_script = f'display notification "{safe_message}" with title "{safe_title}"'
+            subprocess.run(["osascript", "-e", apple_script], capture_output=True, text=True)
+        except Exception as e:
+            self.log_runtime(f"Notification fallback failed: {e}", level="warning")
         self.log_runtime(f"{title}: {message}")
 
     def _write_json_atomic(self, file_path, payload):
@@ -744,43 +756,70 @@ class BatteryAlertApp(rumps.App):
     def check_for_updates(self, manual=False):
         """Check whether a newer release is available on GitHub."""
         if not manual and not self.settings.get("enable_update_checks", True):
-            return
+            return {"status": "disabled", "message": "Automatic update checks are disabled."}
 
         if not manual and not self.should_check_for_updates():
-            return
+            return {"status": "throttled", "message": "Automatic update check throttled."}
 
         try:
             latest = self.get_latest_release_version()
             self._write_last_update_check(datetime.now())
 
             if not latest:
-                if manual:
-                    self.show_feedback(
-                        "Update Check",
-                        "Could not determine the latest release version right now. Please try again shortly."
-                    )
-                return
+                return {
+                    "status": "unknown",
+                    "message": "Could not determine the latest release version right now. Please try again shortly."
+                }
 
             if self.is_newer_version(latest, APP_VERSION):
                 message = f"Version {latest} is available. You are on {APP_VERSION}."
                 self.log_runtime(message)
-                if manual:
-                    self.show_feedback("Update Available", message)
-            elif manual:
-                self.show_feedback("No Updates", f"You are up to date on version {APP_VERSION}.")
+                return {"status": "update_available", "message": message}
+
+            return {
+                "status": "up_to_date",
+                "message": f"You are up to date on version {APP_VERSION}."
+            }
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
             self.log_runtime(f"Update check failed: {e}", level="warning")
-            if manual:
-                self.show_feedback("Update Check Failed", "Unable to check updates right now. Please try again later.")
+            return {
+                "status": "failed",
+                "message": "Unable to check updates right now. Please try again later."
+            }
         except Exception as e:
             self.log_runtime(f"Unexpected update check error: {e}", level="warning")
-            if manual:
-                self.show_feedback("Update Check Failed", "Unable to check updates right now. Please try again later.")
+            return {
+                "status": "failed",
+                "message": "Unable to check updates right now. Please try again later."
+            }
+
+    def _run_manual_update_check(self):
+        """Run update check in background and send non-blocking completion feedback."""
+        try:
+            result = self.check_for_updates(manual=True)
+            status = result.get("status", "failed")
+            message = result.get("message", "Unable to check updates right now. Please try again later.")
+
+            if status == "update_available":
+                self.show_non_blocking_feedback("Update Available", message)
+            elif status == "up_to_date":
+                self.show_non_blocking_feedback("No Updates", message)
+            elif status == "unknown":
+                self.show_non_blocking_feedback("Update Check", message)
+            else:
+                self.show_non_blocking_feedback("Update Check Failed", message)
+        finally:
+            self._update_check_in_progress = False
 
     def check_for_updates_now(self, _):
         """Manual update check entrypoint for menu action."""
-        self.show_feedback("Update Check", "Checking for updates...")
-        self.check_for_updates(manual=True)
+        if self._update_check_in_progress:
+            self.show_non_blocking_feedback("Update Check", "An update check is already in progress.")
+            return
+
+        self._update_check_in_progress = True
+        self.show_non_blocking_feedback("Update Check", "Checking for updates in the background...")
+        threading.Thread(target=self._run_manual_update_check, daemon=True).start()
     
     def setup_autolaunch(self):
         """Setup or remove autolaunch using LaunchAgent"""
