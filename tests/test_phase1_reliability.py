@@ -351,10 +351,7 @@ def test_build_release_visibility_summary_includes_update_state(tmp_path):
     assert "Update channel: stable" in summary
     assert "Last result: up_to_date" in summary
     assert "Latest known release: 1.1.0" in summary
-<<<<<<< HEAD
     assert "Latest known release URL: https://example.com/release" in summary
-=======
->>>>>>> origin/main
 
 
 def test_build_status_summary_includes_power_and_support_context(tmp_path):
@@ -369,7 +366,6 @@ def test_build_status_summary_includes_power_and_support_context(tmp_path):
     assert "Last power transition: charging -> discharging" in summary
     assert "Support bundles exported: 2" in summary
     assert "Last update result: update_available" in summary
-<<<<<<< HEAD
     assert "Runtime degraded: no" in summary
 
 
@@ -381,8 +377,6 @@ def test_check_runtime_dependencies_marks_degraded_when_missing(tmp_path, monkey
 
     assert app.runtime_health["is_degraded"] is True
     assert app.runtime_health["missing_tools"]
-=======
->>>>>>> origin/main
 
 
 def test_write_crash_report_persists_latest_timestamp(tmp_path):
@@ -540,7 +534,6 @@ def test_check_for_updates_manual_empty_latest_shows_feedback(tmp_path, monkeypa
     assert result["status"] == "unknown"
     assert "Could not determine" in result["message"]
     assert app.app_state["last_update_status"] == "unknown"
-<<<<<<< HEAD
 
 
 def test_check_for_updates_uses_beta_channel_release_selection(tmp_path, monkeypatch):
@@ -552,8 +545,6 @@ def test_check_for_updates_uses_beta_channel_release_selection(tmp_path, monkeyp
 
     assert result["status"] == "update_available"
     assert app.app_state["last_known_release_url"] == "https://example.com/beta"
-=======
->>>>>>> origin/main
 
 
 def test_export_support_bundle_shows_feedback(tmp_path, monkeypatch):
@@ -607,7 +598,6 @@ def test_open_releases_page_sends_feedback(tmp_path, monkeypatch):
     assert shown == [("Maintenance", "Opened releases page.")]
 
 
-<<<<<<< HEAD
 def test_download_latest_release_uses_known_release_url(tmp_path, monkeypatch):
     app = _new_app_for_unit_tests(tmp_path)
     app.app_state["last_known_release_url"] = "https://example.com/latest"
@@ -623,8 +613,6 @@ def test_download_latest_release_uses_known_release_url(tmp_path, monkeypatch):
     assert shown == [("Maintenance", "Opened latest release download page.")]
 
 
-=======
->>>>>>> origin/main
 def test_support_bundle_diagnostics_do_not_leak_home_path(tmp_path):
     app = _new_app_for_unit_tests(tmp_path)
     app.config_file.write_text('{"battery_threshold": 20}')
