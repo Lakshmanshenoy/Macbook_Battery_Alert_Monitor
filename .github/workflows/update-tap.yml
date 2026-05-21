@@ -17,7 +17,7 @@ jobs:
 
       - name: Download release DMG
         run: |
-          RELEASE_URL=$(jq -r '.release.assets[0].browser_download_url' < $GITHUB_EVENT_PATH)
+          RELEASE_URL=$(jq -r '.release.assets[0].browser_download_url' < "$GITHUB_EVENT_PATH")
           curl -L -o /tmp/Battery.Alert.dmg "$RELEASE_URL"
           SHA=$(shasum -a 256 /tmp/Battery.Alert.dmg | awk '{print $1}')
           echo "SHA=$SHA" > /tmp/release_sha.txt

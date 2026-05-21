@@ -15,7 +15,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -37,10 +37,10 @@ jobs:
         id: sha
         run: |
           SHA=$(shasum -a 256 "dist/${APP_NAME}.dmg" | awk '{print $1}')
-          echo "sha256=$SHA" >> $GITHUB_OUTPUT
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release and upload DMG
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref_name }}
-          files: dist/${APP_NAME}.dmg
+          artifacts: "dist/${APP_NAME}.dmg"
