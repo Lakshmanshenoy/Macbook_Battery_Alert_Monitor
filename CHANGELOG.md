@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.0...v1.2.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* **build:** allow release builds without local venv ([4e8b4d4](https://github.com/Lakshmanshenoy/battmon-macos/commit/4e8b4d4281fbecff4fcf88db0c48247945454130))
+
 ## [1.2.0](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.1.4...v1.2.0) (2026-05-21)
 
 
