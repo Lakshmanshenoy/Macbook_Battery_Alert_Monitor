@@ -47,6 +47,33 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         self.alert_manager.trigger_alert(battery_level, now)
 
+    def update_boolean_setting(self, key, sender, label, enabled_text: str = "ON", disabled_text: str = "OFF") -> None:
+        self._ensure_managers()
+        self.alert_manager.update_boolean_setting(key, sender, label, enabled_text, disabled_text)
+
+    def prompt_for_integer_setting(
+        self,
+        key,
+        title: str,
+        prompt: str,
+        minimum: int,
+        maximum: int,
+        success_message: str,
+    ) -> bool:
+        self._ensure_managers()
+        return self.alert_manager.prompt_for_integer_setting(
+            key,
+            title,
+            prompt,
+            minimum,
+            maximum,
+            success_message,
+        )
+
+    def toggle_update_channel(self, sender) -> None:
+        self._ensure_managers()
+        self.alert_manager.toggle_update_channel(sender)
+
     def load_config(self) -> None:
         self._ensure_managers()
         self.config_manager.load_config()
