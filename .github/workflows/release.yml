@@ -156,14 +156,14 @@ jobs:
         run: |
           shasum -a 256 -c checksums.txt
           python3 scripts/verify_release_artifacts.py \
-            --artifact release_artifacts/Battery\ Alert.dmg \
+            --artifact release_artifacts/BattMon.dmg \
             --checksums checksums.txt
 
       - name: Generate release manifest
         run: |
           python3 scripts/generate_release_manifest.py \
             --version "${GITHUB_REF_NAME#v}" \
-            --artifact release_artifacts/Battery\ Alert.dmg \
+            --artifact release_artifacts/BattMon.dmg \
             --checksums checksums.txt \
             --signing-status "optional" \
             --notarization-status "optional" \
