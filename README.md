@@ -1,5 +1,9 @@
 # 🔋 Battery Alert Monitor for Macbook
 
+[![Semantic Release](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/actions/workflows/semantic-release.yml/badge.svg?branch=main)](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/actions/workflows/semantic-release.yml)
+[![Semantic Release Dry Run](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/actions/workflows/semantic-release-dry-run.yml/badge.svg?branch=main)](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/actions/workflows/semantic-release-dry-run.yml)
+[![Commit Message Lint](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/actions/workflows/commitlint.yml/badge.svg?branch=main)](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/actions/workflows/commitlint.yml)
+
 A professional, user-friendly battery monitoring application for macOS. Get alerts when your battery is running low, with real-time status updates and comprehensive settings.
 
 ## Features
