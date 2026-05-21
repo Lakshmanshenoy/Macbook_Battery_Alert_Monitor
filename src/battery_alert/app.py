@@ -112,9 +112,25 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         self.diagnostics_manager.setup_runtime_logging()
 
+    def check_runtime_dependencies(self) -> None:
+        self._ensure_managers()
+        self.diagnostics_manager.check_runtime_dependencies()
+
+    def log_runtime(self, message: str, level: str = "info") -> None:
+        self._ensure_managers()
+        self.diagnostics_manager.log_runtime(message, level)
+
     def install_exception_hooks(self) -> None:
         self._ensure_managers()
         self.diagnostics_manager.install_exception_hooks()
+
+    def handle_uncaught_exception(self, exc_type, exc_value, exc_traceback) -> None:
+        self._ensure_managers()
+        self.diagnostics_manager.handle_uncaught_exception(exc_type, exc_value, exc_traceback)
+
+    def handle_thread_exception(self, args) -> None:
+        self._ensure_managers()
+        self.diagnostics_manager.handle_thread_exception(args)
 
     def write_crash_report(
         self,
@@ -137,6 +153,18 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
     ) -> str:
         self._ensure_managers()
         return self.diagnostics_manager.build_diagnostics_report(battery_info)
+
+    def get_latest_crash_report_path(self) -> Optional[Path]:
+        self._ensure_managers()
+        return self.diagnostics_manager.get_latest_crash_report_path()
+
+    def show_feedback(self, title: str, message: str) -> None:
+        self._ensure_managers()
+        self.diagnostics_manager.show_feedback(title, message)
+
+    def show_non_blocking_feedback(self, title: str, message: str) -> None:
+        self._ensure_managers()
+        self.diagnostics_manager.show_non_blocking_feedback(title, message)
 
     def create_support_bundle_archive(self, preset: str = "full") -> Optional[Path]:
         self._ensure_managers()
