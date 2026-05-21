@@ -41,8 +41,8 @@ class BatteryService:
             percentage_match = re.search(r"(\d+)%", battery_output)
             battery_level = int(percentage_match.group(1)) if percentage_match else 100
             lower = battery_output.lower()
-            is_charging = "charging" in lower
             is_discharging = "discharging" in lower
+            is_charging = "charging" in lower and not is_discharging
 
             self._cache.update(
                 {
