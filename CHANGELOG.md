@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/compare/v1.1.0...v1.1.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* **battery:** is_charging false-positive when discharging ([2cfab30](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/commit/2cfab302f4ebab418cb6dce5d4bf0e34235f46d9))
+
 ## [1.1.0](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/compare/v1.0.0...v1.1.0) (2026-05-21)
 
 
