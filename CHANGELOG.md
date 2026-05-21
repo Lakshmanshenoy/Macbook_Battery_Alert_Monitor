@@ -1,3 +1,10 @@
+## [1.1.3](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/compare/v1.1.2...v1.1.3) (2026-05-21)
+
+
+### Bug Fixes
+
+* **ci:** use BattMon artifact path in verification steps ([57d8487](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/commit/57d8487b8abdc4272eaf92d091596a6804db04b0))
+
 ## [1.1.2](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/compare/v1.1.1...v1.1.2) (2026-05-21)
 
 
