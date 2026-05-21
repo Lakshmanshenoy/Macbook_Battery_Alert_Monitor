@@ -142,6 +142,11 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
+          if [[ -z "$GPG_PRIVATE_KEY" || -z "$GPG_PASSPHRASE" ]]; then
+            echo "Skipping GPG signing (GPG secrets not configured)."
+            cp checksums.txt release_artifacts/checksums.txt
+            exit 0
+          fi
           # Import maintainer private key from secret
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
           # Sign with passphrase from secret
@@ -187,10 +192,6 @@ jobs:
         with:
           body_path: RELEASE_DRAFT.md
           files: |
-            release_artifacts/BattMon.dmg
-            release_artifacts/checksums.txt
-            release_artifacts/checksums.txt.asc
-            release_artifacts/maintainer_public_key.asc
-            release_artifacts/release_manifest.json
+            release_artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
