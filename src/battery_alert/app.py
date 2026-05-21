@@ -179,6 +179,30 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         self.config_manager.write_json_atomic(destination, payload)
 
+    def record_app_state_event(self, key, value=None) -> None:
+        self._ensure_managers()
+        self.config_manager.record_app_state_event(key, value)
+
+    def onboarding_summary(self) -> str:
+        self._ensure_managers()
+        return self.config_manager.onboarding_summary()
+
+    def show_getting_started(self, _=None) -> None:
+        self._ensure_managers()
+        self.config_manager.show_getting_started(_)
+
+    def maybe_show_first_run_onboarding(self) -> None:
+        self._ensure_managers()
+        self.config_manager.maybe_show_first_run_onboarding()
+
+    def _is_process_running(self, pid) -> bool:
+        self._ensure_managers()
+        return self.config_manager.is_process_running(pid)
+
+    def ensure_single_instance(self) -> None:
+        self._ensure_managers()
+        self.config_manager.ensure_single_instance()
+
     def setup_runtime_logging(self) -> None:
         self._ensure_managers()
         self.diagnostics_manager.setup_runtime_logging()

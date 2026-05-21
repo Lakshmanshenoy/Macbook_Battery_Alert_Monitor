@@ -1,6 +1,7 @@
 # mypy: ignore-errors
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
@@ -19,6 +20,16 @@ class ConfigManager:
 
     def __init__(self, app: "LegacyBatteryAlertApp") -> None:
         self.app = app
+
+    def _rumps_module(self):
+        gui_module = sys.modules.get("battery_alert_gui")
+        rumps = getattr(gui_module, "rumps", None)
+        if rumps is not None:
+            return rumps
+
+        import rumps as imported_rumps
+
+        return imported_rumps
 
     def default_settings_payload(self) -> Dict[str, Any]:
         return self.app.default_settings_payload()
@@ -210,3 +221,82 @@ class ConfigManager:
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(tmp_path, destination)
+
+    def record_app_state_event(self, key, value=None) -> None:
+        """Record lightweight app usage metrics for post-release support."""
+        if not hasattr(self.app, "app_state") or not isinstance(self.app.app_state, dict):
+            self.app.app_state = self.default_app_state_payload()
+
+        if key not in self.app.app_state:
+            return
+
+        if isinstance(self.app.app_state.get(key), int):
+            self.app.app_state[key] = int(self.app.app_state[key]) + (1 if value is None else value)
+        else:
+            self.app.app_state[key] = value
+        self.app.save_app_state()
+
+    def onboarding_summary(self) -> str:
+        """Return a short onboarding summary for new users."""
+        return (
+            "Welcome to Battery Alert Monitor.\n\n"
+            "Quick start:\n"
+            "1. Set Battery Threshold and Alert Cooldown from the menu.\n"
+            "2. Use Check for Updates or Run Release Check from the maintenance menu.\n"
+            "3. Export a Support Bundle if you need help troubleshooting.\n\n"
+            "You can reopen this message from the menu anytime."
+        )
+
+    def show_getting_started(self, _=None) -> None:
+        """Show onboarding guidance on demand."""
+        try:
+            self._rumps_module().alert("Getting Started", self.onboarding_summary())
+        except Exception as exc:
+            self.app.log_runtime(f"Error in show_getting_started: {exc}", level="error")
+
+    def maybe_show_first_run_onboarding(self) -> None:
+        """Show a one-time onboarding tip on first launch."""
+        if self.app.app_state.get("first_launch_completed"):
+            return
+
+        self.app.app_state["first_launch_completed"] = True
+        self.app.app_state["onboarding_shown_at"] = datetime.now().isoformat()
+        self.app.save_app_state()
+        self.app.show_non_blocking_feedback(
+            "Welcome",
+            "Battery Alert is ready. Open Getting Started for a short tour of the main settings.",
+        )
+
+    def is_process_running(self, pid) -> bool:
+        """Check if a process with the given PID exists."""
+        try:
+            os.kill(pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        except Exception:
+            return False
+
+    def ensure_single_instance(self) -> None:
+        """Prevent multiple app instances and clean stale PID files."""
+        if not self.app.pid_file.exists():
+            return
+
+        try:
+            existing_pid_raw = self.app.pid_file.read_text().strip()
+            if not existing_pid_raw:
+                self.app.pid_file.unlink(missing_ok=True)
+                return
+
+            existing_pid = int(existing_pid_raw)
+            if existing_pid == os.getpid():
+                return
+
+            if self.app._is_process_running(existing_pid):
+                raise RuntimeError("Battery Alert is already running.")
+
+            self.app.pid_file.unlink(missing_ok=True)
+        except ValueError:
+            self.app.pid_file.unlink(missing_ok=True)
