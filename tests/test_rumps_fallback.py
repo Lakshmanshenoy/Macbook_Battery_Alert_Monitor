@@ -3,7 +3,6 @@ import importlib.util
 import sys
 from pathlib import Path
 
-
 MODULE_PATH = Path(__file__).resolve().parent.parent / "battery_alert_gui.py"
 
 

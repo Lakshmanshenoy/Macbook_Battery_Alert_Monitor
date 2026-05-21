@@ -1,10 +1,10 @@
 import importlib
-from datetime import datetime, timedelta
-from pathlib import Path
 import json
-import zipfile
 import sys
 import types
+import zipfile
+from datetime import datetime, timedelta
+from pathlib import Path
 
 
 def _install_rumps_stub():
@@ -331,7 +331,7 @@ def test_cleanup_old_support_artifacts_keeps_recent_files(tmp_path):
     assert len(list(app.crash_reports_dir.glob("crash_report_*.json"))) == 2
 
 
- 
+
 def test_migrate_config_payload_adds_schema_and_defaults(tmp_path):
     app = _new_app_for_unit_tests(tmp_path)
     migrated = app.migrate_config_payload({"battery_threshold": 35})

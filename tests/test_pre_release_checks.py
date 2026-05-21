@@ -2,6 +2,7 @@ from pathlib import Path
 
 from scripts.run_pre_release_checks import build_command_plan
 
+
 def test_build_command_plan_includes_core_release_checks():
     plan = build_command_plan()
     assert ["pytest", "-q"] in plan

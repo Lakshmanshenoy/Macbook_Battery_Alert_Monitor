@@ -1,8 +1,7 @@
 import importlib.util
 import json
-from pathlib import Path
 import sys
-
+from pathlib import Path
 
 SCRIPT_PATH = Path(__file__).resolve().parent.parent / "scripts" / "release_smoke_test.py"
 

@@ -1,3 +1,5 @@
 rumps>=0.3.0; platform_system == "Darwin"
 pyinstaller>=6.15.0
 pytest>=7.0.0
+mypy>=1.0
+ruff>=0.4
