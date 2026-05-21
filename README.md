@@ -168,7 +168,6 @@ Support actions in the menu can also copy a diagnostics snapshot and open this f
 
 ## Maintenance
 
-- Use **Getting Started** if you want to reopen the onboarding tips.
 - Use **Version & Updates** to inspect the last check time and latest known release without starting a new network request.
 - Use **Update Channel** to toggle between stable and beta checks.
 - Use **Download Latest Release** to open the latest known release directly in your browser.
@@ -181,73 +180,19 @@ Support actions in the menu can also copy a diagnostics snapshot and open this f
 - Run the compact ship checklist with `python3 scripts/ship_checklist.py --version X.Y.Z`.
 - Verify published GitHub release assets with `python3 scripts/verify_published_release.py --help`.
 
-## Release Security (Phase 3)
+## Release Signing (Optional)
 
-The release workflow now supports optional signing and notarization for macOS artifacts.
+The release workflow supports optional code signing and notarization. Without these secrets the workflow still produces unsigned artifacts.
 
-Add these repository secrets to enable signed releases:
-- `MACOS_SIGNING_CERT_BASE64` - Base64-encoded `.p12` Developer ID certificate
-- `MACOS_SIGNING_CERT_PASSWORD` - Password for the `.p12` certificate
-- `MACOS_SIGNING_IDENTITY` - Codesign identity (for example: `Developer ID Application: Your Name (TEAMID)`)
+Add these repository secrets to enable **signing**:
+- `MACOS_SIGNING_CERT_BASE64` — Base64-encoded `.p12` Developer ID certificate
+- `MACOS_SIGNING_CERT_PASSWORD` — Password for the `.p12` certificate
+- `MACOS_SIGNING_IDENTITY` — Codesign identity (e.g. `Developer ID Application: Your Name (TEAMID)`)
 
-Add these repository secrets to enable notarization:
+Add these secrets to enable **notarization**:
 - `APPLE_ID`
 - `APPLE_APP_SPECIFIC_PASSWORD`
 - `APPLE_TEAM_ID`
-
-If these secrets are not set, the workflow still produces unsigned release artifacts.
-
-## Reliability Hardening (Phase 6)
-
-- Config and app-state payloads now include schema versions and migration defaults.
-- Support bundles include `manifest.json` and `safe_share_guide.txt`.
-- Diagnostics in support bundles redact your home-directory path (`/Users/...` -> `~`).
-- The release workflow supports `workflow_dispatch` dry runs that build and verify artifacts without publishing a GitHub release.
-
-## Validation and Support Polish (Phase 7)
-
-- Startup now recovers from corrupted config, app-state, alert-history, and update-state JSON files by quarantining unreadable files and restoring safe defaults.
-- Support diagnostics redaction now also masks email addresses and obvious username markers.
-- Diagnostics now include `Last update check` and `Last support bundle export` timestamps.
-- CI now lints GitHub workflows with `actionlint` before running tests.
-- CI and release workflows both exercise `scripts/verify_release_artifacts.py` for post-build artifact integrity checks.
-
-## Distribution and Observability (Phase 8)
-
-- The app now stores structured crash reports for uncaught exceptions under `~/.battery_alert/crash_reports/`.
-- Support bundles include the latest crash report when one is available.
-- The menu now includes **Version & Updates** and **Open Releases Page** for clearer self-service update handling.
-- `View System Status` now includes power-source transition history, support export counts, and tracked update state.
-- CI now verifies an uploaded/downloaded artifact pair instead of only checking a locally generated file.
-- Maintainers can run `python3 scripts/run_pre_release_checks.py` to execute the pre-release validation sequence locally.
-
-## Release Trust and Maintainability (Phase 9)
-
-- Update checks now support stable/beta channels and track the latest known release URL for direct downloads.
-- Support export now supports a diagnostics-only preset and retention cleanup for old bundles/reports.
-- Runtime dependency health is tracked so maintainers can quickly identify degraded environments.
-- Release workflow now publishes `release_manifest.json` alongside checksum artifacts.
-- A post-release verification workflow validates published release assets from GitHub Releases.
-- New maintainer scripts are available for release manifest generation, release note drafting, ship checklist execution, and published-asset verification.
-
-## Quality Gate Automation (Phase 10)
-
-- CI now runs `scripts/checks.sh` as the unified quality gate before artifact jobs.
-- `scripts/checks.sh` runs fixer + syntax validation + tests + smoke checks + synthetic artifact verification.
-- `scripts/fix_indentation_and_conflicts.py` is scoped to project sources (`battery_alert_gui.py`, `scripts/`, `tests/`) to avoid unsafe environment rewrites.
-
-## Runtime Resilience and Recovery (Phase 11)
-
-- Update-check throttle state now uses a versioned persisted payload with migration and corrupted-file recovery.
-- Support bundle export safely includes rotated runtime logs (`battery_alert.log.*`) when present.
-- Version/status/diagnostics summaries are de-duplicated to improve support signal quality.
-- Runtime resilience tests now cover update-state recovery and rotated-log bundling behavior.
-
-## Quality Hardening (Phase 11.1)
-
-- CI now runs `bash scripts/checks.sh --ci` in non-mutating mode to fail fast on fixer-detectable issues.
-- CI test matrix now validates both `macos-latest` and `ubuntu-latest` across Python `3.10` and `3.11`.
-- CI adds a lightweight static/security gate (`ruff` critical rules + `pip-audit`) before test execution.
 
 ## System Requirements
 
@@ -285,20 +230,30 @@ If these secrets are not set, the workflow still produces unsigned release artif
 ### Project Structure
 
 ```
-Battery_Low_Alert/
-├── battery_alert_gui.py      # Main application (~450 lines)
-├── requirements.txt          # Python dependencies
-├── setup.sh                  # Setup script
-├── build.sh                  # Build script
-├── create_dmg.sh             # DMG creation script
-├── BatteryAlert.icns         # Custom app icon
-├── BatteryAlert.iconset/     # Icon source files
-└── dist/                     # Built application output
+Macbook_Battery_Alert_Monitor/
+├── battery_alert_gui.py          # Entry point shim
+├── src/
+│   └── battery_alert/
+│       ├── __init__.py
+│       ├── constants.py          # App-wide constants and paths
+│       ├── battery.py            # pmset polling with TTL caching
+│       ├── config.py             # JSON persistence and migration
+│       ├── alerts.py             # Alert decision and firing logic
+│       ├── updater.py            # GitHub release update checks
+│       ├── diagnostics.py        # Crash reports and support bundles
+│       └── app.py                # rumps orchestration layer
+├── tests/                        # pytest test suite
+├── scripts/                      # Maintainer and release scripts
+├── requirements.txt              # Python dependencies
+├── pyproject.toml                # Build metadata and tool config
+├── setup.sh                      # Dev environment setup
+├── build.sh                      # PyInstaller build script
+└── create_dmg.sh                 # DMG creation script
 ```
 
 ### Building a Newer Version
 
-1. Update `battery_alert_gui.py` with changes
+1. Make changes in `src/battery_alert/`
 2. Run `bash build.sh` to create new app bundle
 3. Optionally run `bash create_dmg.sh` for distribution
 
@@ -306,7 +261,8 @@ Battery_Low_Alert/
 
 For issues or feature requests, please check:
 - Configuration files in `~/.battery_alert/`
-- Console messages in `/tmp/battery_alert.log`
+- Runtime logs in `~/.battery_alert/logs/battery_alert.log`
+- Use **Export Support Bundle** from the menu bar to create a shareable diagnostics zip
 
 ## Release Validation
 
@@ -327,9 +283,18 @@ MIT License - see [LICENSE](./LICENSE).
 
 ## Version History
 
-**v1.0.0** (Current)
-- Initial release with GUI
-- Menu bar integration
-- Interactive settings
-- Alert history
-- Auto-launch support
+**v1.1.0** (Current)
+- Modular package: logic split into `src/battery_alert/` (battery, config, alerts, updater, diagnostics)
+- MIT License added
+- Automated semantic versioning via Conventional Commits
+- Structured crash reports and rotating runtime logs
+- Stable/beta update channels
+- One-click support bundle export with redaction
+- Fixed `is_charging` false-positive when battery is discharging
+
+**v1.0.0**
+- Initial release
+- Menu bar integration with live battery percentage
+- Sound, voice, and macOS notification alerts
+- Configurable threshold, interval, and cooldown
+- Alert history and auto-launch support
