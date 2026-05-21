@@ -118,6 +118,18 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         self.alert_manager.toggle_update_checks(sender)
 
+    def update_menu_icon(self) -> None:
+        self._ensure_managers()
+        self.alert_manager.update_menu_icon()
+
+    def update_icon_loop(self) -> None:
+        self._ensure_managers()
+        self.alert_manager.update_icon_loop()
+
+    def monitor_battery(self) -> None:
+        self._ensure_managers()
+        self.alert_manager.monitor_battery()
+
     def load_config(self) -> None:
         self._ensure_managers()
         self.config_manager.load_config()

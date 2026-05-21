@@ -277,3 +277,65 @@ class AlertManager:
         self.app.save_config()
         sender.title = f"🧭 Update Channel: {self.app.settings['update_channel'].upper()}"
         self.app.show_maintenance_status(f"Update channel set to {self.app.settings['update_channel']}.")
+
+    def update_menu_icon(self) -> None:
+        """Update menu bar icon with battery status."""
+        try:
+            battery_info = self.app.get_battery_info()
+            level = battery_info["level"]
+
+            if battery_info["is_charging"]:
+                icon = "🔌"
+                self.app.log_runtime("Charging detected - using 🔌")
+            elif level > 50:
+                icon = "🔋"
+            elif level > 20:
+                icon = "🪫"
+            else:
+                icon = "⚠️"
+
+            title = f"{icon} {level}%"
+            old_title = self.app.title
+            self.app.title = title
+
+            if old_title != title:
+                self.app.log_runtime(f"{old_title} → {title}")
+        except Exception as exc:
+            self.app.log_runtime(f"Failed to update menu icon: {exc}", level="error")
+
+    def update_icon_loop(self) -> None:
+        """Continuously update menu bar icon every 5 seconds."""
+        while self.app.monitoring and not self.app.stop_event.is_set():
+            try:
+                self.app.update_menu_icon()
+                self.app.stop_event.wait(5)
+            except Exception as exc:
+                self.app.log_runtime(f"Error in update_icon_loop: {exc}", level="error")
+                self.app.stop_event.wait(5)
+
+    def monitor_battery(self) -> None:
+        """Monitor battery in background thread."""
+        while self.app.monitoring and not self.app.stop_event.is_set():
+            try:
+                battery_info = self.app.get_battery_info()
+                level = battery_info["level"]
+
+                current_power_state = "charging" if battery_info["is_charging"] else "discharging"
+                if self.app._last_power_state and self.app._last_power_state != current_power_state:
+                    self.app._last_power_transition = (
+                        f"{self.app._last_power_state} -> {current_power_state} at {level}% "
+                        f"on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    )
+                    self.app.log_runtime(
+                        f"Power source changed: {self.app._last_power_state} -> {current_power_state} at {level}%"
+                    )
+                self.app._last_power_state = current_power_state
+
+                now = datetime.now()
+                if self.app.should_trigger_alert(battery_info, now=now):
+                    self.app.trigger_alert(level, now=now)
+
+                self.app.stop_event.wait(self.app.settings["check_interval"])
+            except Exception as exc:
+                self.app.log_runtime(f"Error in monitor_battery: {exc}", level="error")
+                self.app.stop_event.wait(10)
