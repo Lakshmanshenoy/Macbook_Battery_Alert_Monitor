@@ -4,13 +4,13 @@
 echo "🔨 Building BattMon macOS App..."
 echo ""
 
-# Activate virtual environment
+# Activate local virtual environment when present; CI can use the runner's
+# already-prepared Python environment instead.
 if [ -d "venv" ]; then
     echo "🔄 Activating virtual environment..."
     source venv/bin/activate
 else
-    echo "❌ Virtual environment not found. Please run ./setup.sh first"
-    exit 1
+    echo "ℹ️ No local virtual environment found. Using current Python environment."
 fi
 
 echo ""
