@@ -19,6 +19,7 @@ __pycache__/
 # IDE and Editor
 .vscode/
 .idea/
+shenoylabs.code-workspace
 *.swp
 *.swo
 *~

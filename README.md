@@ -106,11 +106,8 @@ On first launch, the app shows a short onboarding tip and keeps a persistent rec
 - **Copy Diagnostics** - Copy support-friendly diagnostics to the clipboard
 - **Export Support Bundle** - Create a zipped bundle for issue reporting
 - **Check for Updates** - Check latest release availability
-<<<<<<< HEAD
 - **Update Channel** - Switch between stable and beta release checks
 - **Download Latest Release** - Open the last known release URL directly
-=======
->>>>>>> origin/main
 - **Open Releases Page** - Open the project releases page in your browser
 - **Run Release Check** - Run the release smoke test in the background
 - **Open Config Folder** - Open the settings folder in Finder
@@ -169,22 +166,16 @@ Support actions in the menu can also copy a diagnostics snapshot and open this f
 
 - Use **Getting Started** if you want to reopen the onboarding tips.
 - Use **Version & Updates** to inspect the last check time and latest known release without starting a new network request.
-<<<<<<< HEAD
 - Use **Update Channel** to toggle between stable and beta checks.
 - Use **Download Latest Release** to open the latest known release directly in your browser.
-=======
->>>>>>> origin/main
 - Use **Run Release Check** to run the release smoke test from inside the app.
 - Use **Export Support Bundle** and choose **Diagnostics only** when support only needs lightweight metadata.
 - The release smoke test script is still available directly at `python3 scripts/release_smoke_test.py`.
 - Run `python3 scripts/run_pre_release_checks.py` for a one-command local pre-release validation pass.
-<<<<<<< HEAD
 - Generate release metadata with `python3 scripts/generate_release_manifest.py --help`.
 - Generate release-note drafts with `python3 scripts/generate_release_notes.py --help`.
 - Run the compact ship checklist with `python3 scripts/ship_checklist.py --version X.Y.Z`.
 - Verify published GitHub release assets with `python3 scripts/verify_published_release.py --help`.
-=======
->>>>>>> origin/main
 
 ## Release Security (Phase 3)
 
@@ -328,7 +319,7 @@ The support-handling guide lives in [docs/support-triage-guide.md](docs/support-
 
 ## License
 
-This project is open-source and available for personal use.
+MIT License - see [LICENSE](./LICENSE).
 
 ## Version History
 
