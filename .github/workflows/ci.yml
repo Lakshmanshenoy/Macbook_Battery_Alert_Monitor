@@ -72,10 +72,10 @@ jobs:
         if: matrix.os == 'macos-latest' && matrix.python-version == '3.10'
         run: |
           mkdir -p tmp_release
-          printf 'phase7-ci-artifact' > tmp_release/Battery\ Alert.dmg
-          bash scripts/generate_checksums.sh tmp_release/Battery\ Alert.dmg
+          printf 'phase7-ci-artifact' > tmp_release/BattMon.dmg
+          bash scripts/generate_checksums.sh tmp_release/BattMon.dmg
           python3 scripts/verify_release_artifacts.py \
-            --artifact tmp_release/Battery\ Alert.dmg \
+            --artifact tmp_release/BattMon.dmg \
             --checksums checksums.txt
       - name: Upload synthetic release artifact
         if: matrix.os == 'macos-latest' && matrix.python-version == '3.10'
@@ -103,5 +103,5 @@ jobs:
       - name: Verify downloaded artifact integrity
         run: |
           python3 scripts/verify_release_artifacts.py \
-            --artifact downloaded_artifacts/tmp_release/Battery\ Alert.dmg \
+            --artifact downloaded_artifacts/tmp_release/BattMon.dmg \
             --checksums downloaded_artifacts/checksums.txt
