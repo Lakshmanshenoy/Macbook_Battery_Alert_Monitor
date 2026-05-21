@@ -1,4 +1,5 @@
 # mypy: ignore-errors
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,8 @@ from .icon_renderer import StatusIconRenderer
 from .legacy_app import BatteryAlertApp as LegacyBatteryAlertApp
 from .preferences_window import PreferencesWindowController
 from .updater import UpdateChecker
+
+BUILD_TYPE = os.environ.get("BATTERY_ALERT_BUILD", "release").strip().lower()
 
 
 class BatteryAlertApp(LegacyBatteryAlertApp):
@@ -49,7 +52,7 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
 
     def setup_menu(self) -> None:
         rumps = self._rumps_module()
-        self.menu = [
+        menu_items = [
             rumps.MenuItem("Getting Started", self.show_getting_started),
             rumps.MenuItem("Show Preferences", self.show_preferences),
             rumps.MenuItem("Battery Threshold", self.set_threshold),
@@ -68,18 +71,26 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
             rumps.MenuItem("Version & Updates", self.show_version_and_updates),
             rumps.MenuItem("Run Update Check", self.check_for_updates_now),
             rumps.MenuItem("Download Latest Release", self.download_latest_release),
-            rumps.MenuItem("Run Release Validation", self.run_release_validation_now),
             rumps.MenuItem("Open Releases Page", self.open_releases_page),
             rumps.MenuItem("Run Test Alert", self.test_alert),
             rumps.MenuItem("View Alert History", self.view_alert_history),
             rumps.MenuItem("Copy Support Diagnostics", self.copy_diagnostics),
             rumps.MenuItem("Export Support Bundle", self.export_support_bundle),
-            rumps.MenuItem("Export Diagnostics-Only Bundle", self.export_diagnostics_bundle),
             rumps.MenuItem("Open Support Folder", self.open_config_folder),
             None,
             rumps.MenuItem("About", self.show_about),
             rumps.MenuItem("Quit", self.quit_app),
         ]
+
+        if BUILD_TYPE == "dev":
+            menu_items[24:24] = [
+                None,
+                rumps.MenuItem("- Developer -", None),
+                rumps.MenuItem("Run Release Validation", self.run_release_validation_now),
+                rumps.MenuItem("Export Diagnostics-Only Bundle", self.export_diagnostics_bundle),
+            ]
+
+        self.menu = menu_items
 
     def get_battery_info(self) -> Dict[str, Union[int, bool]]:
         self._ensure_managers()
