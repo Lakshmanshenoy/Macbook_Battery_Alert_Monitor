@@ -212,7 +212,7 @@ class BatteryAlertApp(rumps.App):
                         self.settings = self.default_settings_payload()
                 self.validate_settings()
             except Exception as e:
-                print(f"[ERROR] Failed to load config: {e}")
+                self.log_runtime(f"Failed to load config: {e}", level="error")
                 self.settings = self.default_settings_payload()
                 self.validate_settings()
                 self.recover_corrupted_json_file(
@@ -308,16 +308,18 @@ class BatteryAlertApp(rumps.App):
             self.logger = logger
             self.log_runtime("Runtime logging initialized")
         except Exception as e:
-            print(f"[ERROR] Failed to initialize runtime logging: {e}")
+            self.log_runtime(f"Failed to initialize runtime logging: {e}", level="error")
 
     def log_runtime(self, message, level="info"):
         """Log runtime messages to both console and rotating log file."""
-        print(f"[RUNTIME] {message}")
-        if not self.logger:
+        if self.logger:
+            log_method = getattr(self.logger, level, self.logger.info)
+            log_method(message)
             return
 
-        log_method = getattr(self.logger, level, self.logger.info)
-        log_method(message)
+        fallback_logger = logging.getLogger("battery_alert")
+        fallback_method = getattr(fallback_logger, level, fallback_logger.info)
+        fallback_method(message)
 
     def install_exception_hooks(self):
         """Capture uncaught exceptions into crash reports for later support analysis."""
@@ -374,7 +376,7 @@ class BatteryAlertApp(rumps.App):
             self.record_app_state_event("last_crash_report_at", report_timestamp.isoformat())
             return report_path
         except Exception as e:
-            print(f"[ERROR] Failed to write crash report: {e}")
+            self.log_runtime(f"Failed to write crash report: {e}", level="error")
             return None
 
     def get_latest_crash_report_path(self):
@@ -438,7 +440,7 @@ class BatteryAlertApp(rumps.App):
                 )
             self._write_json_atomic(file_path, default_payload)
         except Exception as e:
-            print(f"[ERROR] Failed to recover corrupted {context_label} file: {e}")
+            self.log_runtime(f"Failed to recover corrupted {context_label} file: {e}", level="error")
     
     def save_config(self):
         """Save configuration to file"""
@@ -446,7 +448,7 @@ class BatteryAlertApp(rumps.App):
             self.validate_settings()
             self._write_json_atomic(self.config_file, self.settings)
         except Exception as e:
-            print(f"[ERROR] Failed to save config: {e}")
+            self.log_runtime(f"Failed to save config: {e}", level="error")
     
     def load_alert_history(self):
         """Load alert history from file"""
@@ -464,7 +466,7 @@ class BatteryAlertApp(rumps.App):
                     else:
                         self.alert_history = []
             except Exception as e:
-                print(f"[ERROR] Failed to load history: {e}")
+                self.log_runtime(f"Failed to load history: {e}", level="error")
                 self.alert_history = []
                 self.recover_corrupted_json_file(self.log_file, [], "alert history")
     
@@ -473,7 +475,7 @@ class BatteryAlertApp(rumps.App):
         try:
             self._write_json_atomic(self.log_file, self.alert_history[-100:])  # Keep up to 100 alerts
         except Exception as e:
-            print(f"[ERROR] Failed to save history: {e}")
+            self.log_runtime(f"Failed to save history: {e}", level="error")
 
     def load_app_state(self):
         """Load persistent app state used for onboarding and maintenance metrics."""
@@ -490,7 +492,7 @@ class BatteryAlertApp(rumps.App):
                 self.app_state = self.default_app_state_payload()
                 self.save_app_state()
         except Exception as e:
-            print(f"[ERROR] Failed to load app state: {e}")
+            self.log_runtime(f"Failed to load app state: {e}", level="error")
             self.app_state = self.default_app_state_payload()
             self.recover_corrupted_json_file(
                 self.app_state_file,
@@ -514,7 +516,7 @@ class BatteryAlertApp(rumps.App):
             self.app_state["app_state_schema_version"] = APP_STATE_SCHEMA_VERSION
             self._write_json_atomic(self.app_state_file, self.app_state)
         except Exception as e:
-            print(f"[ERROR] Failed to save app state: {e}")
+            self.log_runtime(f"Failed to save app state: {e}", level="error")
 
     def migrate_update_state_payload(self, payload):
         """Migrate persisted update-state payloads from older schema versions."""
@@ -541,7 +543,7 @@ class BatteryAlertApp(rumps.App):
                 self.update_state = self.default_update_state_payload()
                 self.save_update_state()
         except Exception as e:
-            print(f"[ERROR] Failed to load update state: {e}")
+            self.log_runtime(f"Failed to load update state: {e}", level="error")
             self.update_state = self.default_update_state_payload()
             self.recover_corrupted_json_file(
                 self.update_state_file,
@@ -555,7 +557,7 @@ class BatteryAlertApp(rumps.App):
             self.update_state["update_state_schema_version"] = UPDATE_STATE_SCHEMA_VERSION
             self._write_json_atomic(self.update_state_file, self.update_state)
         except Exception as e:
-            print(f"[ERROR] Failed to save update state: {e}")
+            self.log_runtime(f"Failed to save update state: {e}", level="error")
 
     def record_app_state_event(self, key, value=None):
         """Record lightweight app usage metrics for post-release support."""
@@ -587,7 +589,7 @@ class BatteryAlertApp(rumps.App):
         try:
             rumps.alert("Getting Started", self.onboarding_summary())
         except Exception as e:
-            print(f"[ERROR] Error in show_getting_started: {e}")
+            self.log_runtime(f"Error in show_getting_started: {e}", level="error")
 
     def maybe_show_first_run_onboarding(self):
         """Show a one-time onboarding tip on first launch."""
@@ -657,8 +659,8 @@ class BatteryAlertApp(rumps.App):
             is_discharging = "discharging" in battery_output.lower()
             
             # Debug output
-            print(f"[BATTERY] Level: {battery_level}%, Charging: {is_charging}, Discharging: {is_discharging}")
-            print(f"[BATTERY] Raw: {battery_output.strip()[:100]}")
+            self.log_runtime(f"Level: {battery_level}%, Charging: {is_charging}, Discharging: {is_discharging}")
+            self.log_runtime(f"Raw: {battery_output.strip()[:100]}")
             
             return {
                 "level": battery_level,
@@ -666,7 +668,7 @@ class BatteryAlertApp(rumps.App):
                 "is_discharging": is_discharging
             }
         except Exception as e:
-            print(f"[ERROR] Failed to get battery info: {e}")
+            self.log_runtime(f"Failed to get battery info: {e}", level="error")
             return {"level": 0, "is_charging": False, "is_discharging": False}
     
     def update_menu_icon(self):
@@ -678,7 +680,7 @@ class BatteryAlertApp(rumps.App):
             # Icon selection based on battery level
             if battery_info["is_charging"]:
                 icon = "🔌"
-                print("[ICON] Charging detected - using 🔌")
+                self.log_runtime("Charging detected - using 🔌")
             elif level > 50:
                 icon = "🔋"
             elif level > 20:
@@ -691,10 +693,10 @@ class BatteryAlertApp(rumps.App):
             self.title = title
             
             if old_title != title:
-                print(f"[ICON UPDATE] {old_title} → {title}")
+                self.log_runtime(f"{old_title} → {title}")
             
         except Exception as e:
-            print(f"[ERROR] Failed to update menu icon: {e}")
+            self.log_runtime(f"Failed to update menu icon: {e}", level="error")
     
     def update_icon_loop(self):
         """Continuously update menu bar icon every 5 seconds"""
@@ -703,7 +705,7 @@ class BatteryAlertApp(rumps.App):
                 self.update_menu_icon()
                 self.stop_event.wait(5)  # Update every 5 seconds
             except Exception as e:
-                print(f"[ERROR] Error in update_icon_loop: {e}")
+                self.log_runtime(f"Error in update_icon_loop: {e}", level="error")
                 self.stop_event.wait(5)
 
     def should_trigger_alert(self, battery_info, now=None):
@@ -743,7 +745,7 @@ class BatteryAlertApp(rumps.App):
         })
         self.save_alert_history()
         
-        print(f"\n[ALERT TRIGGERED] Battery at {battery_level}% - {alert_time}")
+        self.log_runtime(f"Alert triggered at {battery_level}% ({alert_time})", level="warning")
         
         # Play sound
         if self.settings["enable_sound"]:
@@ -757,10 +759,10 @@ class BatteryAlertApp(rumps.App):
                 for sound_file in sound_files:
                     if os.path.exists(sound_file):
                         subprocess.Popen(['afplay', sound_file])
-                        print(f"[SOUND] Playing: {sound_file}")
+                        self.log_runtime(f"Playing: {sound_file}")
                         break
             except Exception as e:
-                print(f"[ERROR] Sound alert failed: {e}")
+                self.log_runtime(f"Sound alert failed: {e}", level="error")
         
         # Show notification
         if self.settings["enable_notifications"]:
@@ -769,19 +771,19 @@ class BatteryAlertApp(rumps.App):
                 apple_script = f'display notification "Battery at {battery_level}%! Please charge your device." with title "Low Battery Alert"'
                 result = subprocess.run(['osascript', '-e', apple_script], capture_output=True, text=True)
                 if result.returncode != 0:
-                    print(f"[ERROR] Notification failed: {result.stderr}")
+                    self.log_runtime(f"Notification failed: {result.stderr}", level="error")
                 else:
-                    print("[NOTIFICATION] Sent successfully")
+                    self.log_runtime("Sent successfully")
             except Exception as e:
-                print(f"[ERROR] Notification alert failed: {e}")
+                self.log_runtime(f"Notification alert failed: {e}", level="error")
         
         # Voice alert
         if self.settings["enable_voice"]:
             try:
                 subprocess.Popen(['say', f'Battery low at {battery_level} percent. Please charge your device.'])
-                print("[VOICE] Alert triggered")
+                self.log_runtime("Alert triggered")
             except Exception as e:
-                print(f"[ERROR] Voice alert failed: {e}")
+                self.log_runtime(f"Voice alert failed: {e}", level="error")
     
     def monitor_battery(self):
         """Monitor battery in background thread"""
@@ -808,7 +810,7 @@ class BatteryAlertApp(rumps.App):
                 # Wait before next check
                 self.stop_event.wait(self.settings["check_interval"])
             except Exception as e:
-                print(f"[ERROR] Error in monitor_battery: {e}")
+                self.log_runtime(f"Error in monitor_battery: {e}", level="error")
                 self.stop_event.wait(10)
     
     def setup_menu(self):
@@ -856,7 +858,7 @@ class BatteryAlertApp(rumps.App):
         try:
             rumps.alert("Preferences", self.format_settings_summary())
         except Exception as e:
-            print(f"[ERROR] Error in show_preferences: {e}")
+            self.log_runtime(f"Error in show_preferences: {e}", level="error")
     
     def update_menu_labels(self):
         """Update menu item labels to reflect current settings"""
@@ -864,7 +866,7 @@ class BatteryAlertApp(rumps.App):
             # Rebuild menu with updated labels
             self.setup_menu()
         except Exception as e:
-            print(f"[ERROR] Failed to update menu: {e}")
+            self.log_runtime(f"Failed to update menu: {e}", level="error")
 
     def format_settings_summary(self):
         """Return a human-readable summary of the active preferences."""
@@ -1142,7 +1144,7 @@ class BatteryAlertApp(rumps.App):
                 "Battery threshold set to {value}%"
             )
         except Exception as e:
-            print(f"[ERROR] Error in set_threshold: {e}")
+            self.log_runtime(f"Error in set_threshold: {e}", level="error")
             rumps.alert(f"Error: {e}", title="Error")
     
     def set_interval(self, _):
@@ -1157,7 +1159,7 @@ class BatteryAlertApp(rumps.App):
                 "Check interval set to {value} seconds"
             )
         except Exception as e:
-            print(f"[ERROR] Error in set_interval: {e}")
+            self.log_runtime(f"Error in set_interval: {e}", level="error")
             rumps.alert(f"Error: {e}", title="Error")
 
     def set_cooldown(self, _):
@@ -1172,32 +1174,32 @@ class BatteryAlertApp(rumps.App):
                 "Alert cooldown set to {value} seconds"
             )
         except Exception as e:
-            print(f"[ERROR] Error in set_cooldown: {e}")
+            self.log_runtime(f"Error in set_cooldown: {e}", level="error")
             rumps.alert(f"Error: {e}", title="Error")
     
     def toggle_sound(self, sender):
         """Toggle sound alerts"""
         try:
             self.update_boolean_setting("enable_sound", sender, "🔊 Sound Alerts")
-            print(f"[SETTINGS] Sound alerts: {'ON' if self.settings['enable_sound'] else 'OFF'}")
+            self.log_runtime(f"Sound alerts: {'ON' if self.settings['enable_sound'] else 'OFF'}")
         except Exception as e:
-            print(f"[ERROR] Error toggling sound: {e}")
+            self.log_runtime(f"Error toggling sound: {e}", level="error")
     
     def toggle_voice(self, sender):
         """Toggle voice alerts"""
         try:
             self.update_boolean_setting("enable_voice", sender, "🎤 Voice Alerts")
-            print(f"[SETTINGS] Voice alerts: {'ON' if self.settings['enable_voice'] else 'OFF'}")
+            self.log_runtime(f"Voice alerts: {'ON' if self.settings['enable_voice'] else 'OFF'}")
         except Exception as e:
-            print(f"[ERROR] Error toggling voice: {e}")
+            self.log_runtime(f"Error toggling voice: {e}", level="error")
     
     def toggle_notifications(self, sender):
         """Toggle notifications"""
         try:
             self.update_boolean_setting("enable_notifications", sender, "🔔 Notifications")
-            print(f"[SETTINGS] Notifications: {'ON' if self.settings['enable_notifications'] else 'OFF'}")
+            self.log_runtime(f"Notifications: {'ON' if self.settings['enable_notifications'] else 'OFF'}")
         except Exception as e:
-            print(f"[ERROR] Error toggling notifications: {e}")
+            self.log_runtime(f"Error toggling notifications: {e}", level="error")
     
     def toggle_autolaunch(self, sender):
         """Toggle launch at startup"""
@@ -1205,10 +1207,10 @@ class BatteryAlertApp(rumps.App):
             self.update_boolean_setting("auto_launch", sender, "🚀 Launch at Startup")
             self.setup_autolaunch()
             status = "enabled" if self.settings["auto_launch"] else "disabled"
-            print(f"[SETTINGS] Auto-launch: {status}")
+            self.log_runtime(f"Auto-launch: {status}")
             rumps.alert(f"Launch at Startup {status.capitalize()}", title="Success")
         except Exception as e:
-            print(f"[ERROR] Error toggling auto-launch: {e}")
+            self.log_runtime(f"Error toggling auto-launch: {e}", level="error")
             rumps.alert(f"Error: {e}", title="Error")
 
     def toggle_update_checks(self, sender):
@@ -1218,7 +1220,7 @@ class BatteryAlertApp(rumps.App):
             status = "enabled" if self.settings["enable_update_checks"] else "disabled"
             self.log_runtime(f"Automatic update checks {status}")
         except Exception as e:
-            print(f"[ERROR] Error toggling update checks: {e}")
+            self.log_runtime(f"Error toggling update checks: {e}", level="error")
             rumps.alert(f"Error: {e}", title="Error")
 
     def toggle_update_channel(self, sender):
@@ -1230,7 +1232,7 @@ class BatteryAlertApp(rumps.App):
             sender.title = f"🧭 Update Channel: {self.settings['update_channel'].upper()}"
             self.show_maintenance_status(f"Update channel set to {self.settings['update_channel']}.")
         except Exception as e:
-            print(f"[ERROR] Error toggling update channel: {e}")
+            self.log_runtime(f"Error toggling update channel: {e}", level="error")
             rumps.alert(f"Error: {e}", title="Error")
 
     def record_update_check_result(self, status, latest_version=None, latest_url=None, checked_at=None):
@@ -1420,7 +1422,7 @@ class BatteryAlertApp(rumps.App):
         try:
             rumps.alert("Version & Updates", self.build_release_visibility_summary())
         except Exception as e:
-            print(f"[ERROR] Error in show_version_and_updates: {e}")
+            self.log_runtime(f"Error in show_version_and_updates: {e}", level="error")
 
     def open_releases_page(self, _=None):
         """Open the GitHub releases page for self-service downloads and notes."""
@@ -1428,7 +1430,7 @@ class BatteryAlertApp(rumps.App):
             subprocess.run(["open", RELEASES_PAGE_URL], check=False)
             self.show_maintenance_status("Opened releases page.")
         except Exception as e:
-            print(f"[ERROR] Error opening releases page: {e}")
+            self.log_runtime(f"Error opening releases page: {e}", level="error")
             rumps.alert(f"Error: {e}", title="Error")
 
     def download_latest_release(self, _=None):
@@ -1438,7 +1440,7 @@ class BatteryAlertApp(rumps.App):
             subprocess.run(["open", release_url], check=False)
             self.show_maintenance_status("Opened latest release download page.")
         except Exception as e:
-            print(f"[ERROR] Error downloading latest release: {e}")
+            self.log_runtime(f"Error downloading latest release: {e}", level="error")
             rumps.alert(f"Error: {e}", title="Error")
     
     def setup_autolaunch(self):
@@ -1486,17 +1488,17 @@ class BatteryAlertApp(rumps.App):
                              capture_output=True)
                 subprocess.run(['launchctl', 'load', str(plist_file)], 
                              capture_output=True)
-                print(f"[AUTOLAUNCH] Enabled - LaunchAgent plist: {plist_file}")
-                print("[TIP] To see it with app name in login items, add Battery Alert.app to System Settings > General > Login Items")
+                self.log_runtime(f"Enabled - LaunchAgent plist: {plist_file}")
+                self.log_runtime("To see it with app name in login items, add Battery Alert.app to System Settings > General > Login Items")
             else:
                 # Remove autolaunch
                 if plist_file.exists():
                     subprocess.run(['launchctl', 'unload', str(plist_file)], 
                                  capture_output=True)
                     plist_file.unlink()
-                    print("[AUTOLAUNCH] Disabled - LaunchAgent removed")
+                    self.log_runtime("Disabled - LaunchAgent removed")
         except Exception as e:
-            print(f"[ERROR] Failed to setup autolaunch: {e}")
+            self.log_runtime(f"Failed to setup autolaunch: {e}", level="error")
     
     def check_status(self, _):
         """Check and display current battery status"""
@@ -1504,7 +1506,7 @@ class BatteryAlertApp(rumps.App):
             battery_info = self.get_battery_info()
             rumps.alert("System Status", self.build_status_summary(battery_info))
         except Exception as e:
-            print(f"[ERROR] Error in check_status: {e}")
+            self.log_runtime(f"Error in check_status: {e}", level="error")
 
     def test_alert(self, _):
         """Trigger a manual test alert using the current battery level."""
@@ -1516,7 +1518,7 @@ class BatteryAlertApp(rumps.App):
                 title="Test Alert"
             )
         except Exception as e:
-            print(f"[ERROR] Error in test_alert: {e}")
+            self.log_runtime(f"Error in test_alert: {e}", level="error")
             rumps.alert(f"Error: {e}", title="Error")
     
     def view_alert_history(self, _):
@@ -1531,7 +1533,7 @@ class BatteryAlertApp(rumps.App):
             
             rumps.alert("Alert History", history_text)
         except Exception as e:
-            print(f"[ERROR] Error in view_alert_history: {e}")
+            self.log_runtime(f"Error in view_alert_history: {e}", level="error")
 
     def copy_diagnostics(self, _):
         """Copy diagnostics information to the clipboard."""
@@ -1543,7 +1545,7 @@ class BatteryAlertApp(rumps.App):
                 title="Diagnostics"
             )
         except Exception as e:
-            print(f"[ERROR] Error in copy_diagnostics: {e}")
+            self.log_runtime(f"Error in copy_diagnostics: {e}", level="error")
             rumps.alert(f"Error: {e}", title="Error")
 
     def export_support_bundle(self, _):
@@ -1619,7 +1621,7 @@ class BatteryAlertApp(rumps.App):
         try:
             subprocess.run(["open", str(self.config_dir)], check=True)
         except Exception as e:
-            print(f"[ERROR] Error in open_config_folder: {e}")
+            self.log_runtime(f"Error in open_config_folder: {e}", level="error")
             rumps.alert(f"Error: {e}", title="Error")
     
     def show_about(self, _):
@@ -1634,7 +1636,7 @@ Keep your device powered and healthy! 🔋
 © 2024"""
             rumps.alert("About Battery Alert", about_text)
         except Exception as e:
-            print(f"[ERROR] Error in show_about: {e}")
+            self.log_runtime(f"Error in show_about: {e}", level="error")
     
     def quit_app(self, _):
         """Quit the application"""
@@ -1651,7 +1653,7 @@ Keep your device powered and healthy! 🔋
             self.pid_file.unlink(missing_ok=True)
             rumps.quit_application()
         except Exception as e:
-            print(f"[ERROR] Error quitting: {e}")
+            self.log_runtime(f"Error quitting: {e}", level="error")
             rumps.quit_application()
 
 
@@ -1661,7 +1663,7 @@ def main():
         app = BatteryAlertApp()
         app.run()
     except Exception as e:
-        print(f"[FATAL ERROR] {e}")
+        logging.getLogger("battery_alert").exception("Fatal application error: %s", e)
         sys.exit(1)
 
 
