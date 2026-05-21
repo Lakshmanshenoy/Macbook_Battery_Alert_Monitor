@@ -1,3 +1,8 @@
 rumps>=0.3.0; platform_system == "Darwin"
+pyobjc-framework-Cocoa>=10.0; platform_system == "Darwin"
+Pillow>=10.0
 pyinstaller>=6.15.0
 pytest>=7.0.0
+pytest-cov>=4.0.0
+mypy>=1.0
+ruff>=0.4

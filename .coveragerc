@@ -1,0 +1,8 @@
+[run]
+source =
+    src/battery_alert
+
+[report]
+include =
+    src/battery_alert/alerts.py
+    src/battery_alert/config.py

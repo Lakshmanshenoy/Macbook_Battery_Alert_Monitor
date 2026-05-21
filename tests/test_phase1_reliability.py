@@ -1,10 +1,10 @@
 import importlib
-from datetime import datetime, timedelta
-from pathlib import Path
 import json
-import zipfile
 import sys
 import types
+import zipfile
+from datetime import datetime, timedelta
+from pathlib import Path
 
 
 def _install_rumps_stub():
@@ -166,6 +166,46 @@ def test_format_settings_summary_includes_phase2_fields(tmp_path):
     assert "Alert modes: sound, notifications" in summary
     assert "Launch at startup: enabled" in summary
     assert "Update checks: enabled" in summary
+
+
+def test_show_preferences_falls_back_when_native_window_unavailable(tmp_path, monkeypatch):
+    app = _new_app_for_unit_tests(tmp_path)
+    shown = []
+
+    app.preferences_window = types.SimpleNamespace(present=lambda: False)
+    monkeypatch.setattr(
+        battery_alert_module.rumps,
+        "alert",
+        lambda title, message=None: shown.append((title, message)),
+    )
+
+    app.show_preferences(None)
+
+    assert shown
+    assert shown[0][0] == "Preferences"
+    assert "Battery threshold:" in shown[0][1]
+
+
+def test_update_menu_icon_uses_emoji_fallback_when_renderer_unavailable(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.title = "starting"
+    app.icon_renderer = types.SimpleNamespace(apply=lambda level, is_charging: False)
+    app.get_battery_info = lambda: {"level": 17, "is_charging": False, "is_discharging": True}
+
+    app.update_menu_icon()
+
+    assert app.title == "⚠️ 17%"
+
+
+def test_update_menu_icon_keeps_native_renderer_output_when_available(tmp_path):
+    app = _new_app_for_unit_tests(tmp_path)
+    app.title = "native"
+    app.icon_renderer = types.SimpleNamespace(apply=lambda level, is_charging: True)
+    app.get_battery_info = lambda: {"level": 63, "is_charging": False, "is_discharging": True}
+
+    app.update_menu_icon()
+
+    assert app.title == "native"
 
 
 def test_build_diagnostics_report_includes_support_context(tmp_path):
@@ -331,7 +371,7 @@ def test_cleanup_old_support_artifacts_keeps_recent_files(tmp_path):
     assert len(list(app.crash_reports_dir.glob("crash_report_*.json"))) == 2
 
 
- 
+
 def test_migrate_config_payload_adds_schema_and_defaults(tmp_path):
     app = _new_app_for_unit_tests(tmp_path)
     migrated = app.migrate_config_payload({"battery_threshold": 35})

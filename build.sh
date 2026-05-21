@@ -28,6 +28,7 @@ rm -rf build dist *.spec
 
 # Build the app with custom icon
 echo "📦 Creating macOS app bundle..."
+export BATTERY_ALERT_BUILD=release
 pyinstaller \
     --name "Battery Alert" \
     --windowed \

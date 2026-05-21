@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from scripts.fix_indentation_and_conflicts import clean_merge_markers, fix_missing_block_after_defs, process_file
+from scripts.fix_indentation_and_conflicts import (
+    clean_merge_markers,
+    fix_missing_block_after_defs,
+    process_file,
+)
 
 
 def test_clean_merge_markers_removes_only_marker_lines():

@@ -28,7 +28,6 @@ def create_battery_icon(size):
     terminal_top = battery_top + int((battery_height - terminal_height) / 2)
     
     # Draw battery body with border
-    radius = int(size * 0.08)
     draw.rounded_rectangle(
         [(battery_left, battery_top), 
          (battery_left + battery_width - int(terminal_width/2), battery_top + battery_height)],
