@@ -20,3 +20,11 @@ def test_phase9_release_helper_scripts_exist():
 def test_phase10_quality_gate_scripts_exist():
     assert Path("scripts/checks.sh").exists()
     assert Path("scripts/fix_indentation_and_conflicts.py").exists()
+
+
+def test_checks_script_supports_ci_mode_flag():
+    checks_script = Path("scripts/checks.sh")
+    content = checks_script.read_text(encoding="utf-8")
+
+    assert "--ci" in content
+    assert "Usage: bash scripts/checks.sh [local|ci|--ci]" in content

@@ -5,11 +5,14 @@ Use this checklist before cutting a tagged release for Battery Alert Monitor.
 ## Local Validation
 
 - Run the unified gate with `bash scripts/checks.sh`.
+- Optionally run `bash scripts/checks.sh --ci` to confirm CI-mode fail-fast behavior.
 - Run the full test suite with `pytest -q`.
 - Run the release smoke check script.
 - Run `python3 scripts/run_pre_release_checks.py`.
 - Run `python3 scripts/ship_checklist.py --version X.Y.Z --skip-checks` to validate maintainer guidance output.
 - Run `python3 scripts/verify_release_artifacts.py --artifact <artifact> --checksums checksums.txt` against a generated artifact/checksum pair.
+- Run `ruff check --select F,E9 battery_alert_gui.py scripts tests`.
+- Run `pip-audit -r requirements.txt --progress-spinner off`.
 - Confirm `setup.sh` is executable and completes on a clean checkout.
 
 ## App Behavior
