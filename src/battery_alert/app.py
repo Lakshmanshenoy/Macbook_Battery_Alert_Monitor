@@ -209,6 +209,46 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         return self.update_checker.check_for_updates(manual)
 
+    def record_update_check_result(self, status, latest_version=None, latest_url=None, checked_at=None) -> None:
+        self._ensure_managers()
+        self.update_checker.record_update_check_result(status, latest_version, latest_url, checked_at)
+
+    def _version_tuple(self, version):
+        self._ensure_managers()
+        return self.update_checker._version_tuple(version)
+
+    def is_newer_version(self, latest_version, current_version) -> bool:
+        self._ensure_managers()
+        return self.update_checker.is_newer_version(latest_version, current_version)
+
+    def _read_last_update_check(self):
+        self._ensure_managers()
+        return self.update_checker._read_last_update_check()
+
+    def _write_last_update_check(self, timestamp) -> None:
+        self._ensure_managers()
+        self.update_checker._write_last_update_check(timestamp)
+
+    def should_check_for_updates(self, now=None, minimum_hours=24) -> bool:
+        self._ensure_managers()
+        return self.update_checker.should_check_for_updates(now, minimum_hours)
+
+    def _run_manual_update_check(self) -> None:
+        self._ensure_managers()
+        self.update_checker._run_manual_update_check()
+
+    def check_for_updates_now(self, _):
+        self._ensure_managers()
+        self.update_checker.check_for_updates_now(_)
+
+    def show_version_and_updates(self, _=None) -> None:
+        self._ensure_managers()
+        self.update_checker.show_version_and_updates(_)
+
+    def open_releases_page(self, _=None) -> None:
+        self._ensure_managers()
+        self.update_checker.open_releases_page(_)
+
     def get_latest_release(self):
         self._ensure_managers()
         return self.update_checker.get_latest_release()
@@ -216,6 +256,18 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
     def download_latest_release(self, _: Any = None) -> None:
         self._ensure_managers()
         self.update_checker.download_latest_release(_)
+
+    def build_release_validation_command(self):
+        self._ensure_managers()
+        return self.update_checker.build_release_validation_command()
+
+    def _run_release_validation(self) -> None:
+        self._ensure_managers()
+        self.update_checker._run_release_validation()
+
+    def run_release_validation_now(self, _):
+        self._ensure_managers()
+        self.update_checker.run_release_validation_now(_)
 
 
 __all__ = ["APP_VERSION", "BatteryAlertApp"]
