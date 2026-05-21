@@ -2,6 +2,9 @@
 
 Lightweight battery alert monitor for macOS.
 
+[![Download BattMon](https://img.shields.io/badge/Download-BattMon%20DMG-2E7D32?style=for-the-badge&logo=apple)](https://github.com/Lakshmanshenoy/battmon-macos/releases/latest/download/BattMon.dmg)
+[![Homebrew Cask](https://img.shields.io/badge/Homebrew-Cask-F89406?style=for-the-badge&logo=homebrew)](https://github.com/Lakshmanshenoy/battmon-macos)
+
 [![Semantic Release](https://github.com/Lakshmanshenoy/battmon-macos/actions/workflows/semantic-release.yml/badge.svg?branch=main)](https://github.com/Lakshmanshenoy/battmon-macos/actions/workflows/semantic-release.yml)
 [![Semantic Release Dry Run](https://github.com/Lakshmanshenoy/battmon-macos/actions/workflows/semantic-release-dry-run.yml/badge.svg?branch=main)](https://github.com/Lakshmanshenoy/battmon-macos/actions/workflows/semantic-release-dry-run.yml)
 [![Commit Message Lint](https://github.com/Lakshmanshenoy/battmon-macos/actions/workflows/commitlint.yml/badge.svg?branch=main)](https://github.com/Lakshmanshenoy/battmon-macos/actions/workflows/commitlint.yml)
@@ -84,6 +87,17 @@ Lightweight battery alert monitor for macOS. Get alerts when your battery is run
    ```
 
 The built app will be in `dist/BattMon.app`
+
+### Homebrew Cask
+
+If you prefer Homebrew, install BattMon with:
+
+```bash
+brew tap Lakshmanshenoy/battmon-macos
+brew install --cask battmon
+```
+
+This installs the BattMon cask from the repository-backed tap and keeps the app available through Homebrew.
 
 ## Usage
 

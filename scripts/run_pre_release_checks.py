@@ -29,7 +29,7 @@ def build_command_plan() -> list[list[str]]:
 
 def run_synthetic_artifact_check(cwd: Path) -> None:
     """Create a synthetic artifact and verify checksum tooling end-to-end."""
-    with tempfile.TemporaryDirectory(prefix="battery-alert-prerelease-") as temp_dir_raw:
+    with tempfile.TemporaryDirectory(prefix="battmon-prerelease-") as temp_dir_raw:
         temp_dir = Path(temp_dir_raw)
         artifact_dir = temp_dir / "artifacts"
         artifact_dir.mkdir(parents=True, exist_ok=True)

@@ -64,7 +64,7 @@ def new_app():
     module = importlib.reload(module)
     app_cls = module.BatteryAlertApp
 
-    temp_dir = Path(tempfile.mkdtemp(prefix="battery-alert-smoke-"))
+    temp_dir = Path(tempfile.mkdtemp(prefix="battmon-smoke-"))
     app = app_cls.__new__(app_cls)
     app.config_dir = temp_dir
     app.config_file = temp_dir / "config.json"
