@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "battmon-macos"
-version = "1.1.4"
+version = "1.2.0"
 description = "Lightweight battery alert monitor for macOS"
 readme = "README.md"
 license = { file = "LICENSE" }

@@ -1,3 +1,10 @@
+## [1.2.0](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.1.4...v1.2.0) (2026-05-21)
+
+
+### Features
+
+* **distribution:** add BattMon download button and cask ([a06bc29](https://github.com/Lakshmanshenoy/battmon-macos/commit/a06bc29559cde67eae3bb860e186570d284745f9))
+
 ## [1.1.4](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.1.3...v1.1.4) (2026-05-21)
 
 
