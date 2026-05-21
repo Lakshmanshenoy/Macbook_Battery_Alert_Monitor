@@ -9,7 +9,9 @@ from .battery import BatteryService
 from .config import ConfigManager
 from .constants import APP_VERSION
 from .diagnostics import DiagnosticsManager
+from .icon_renderer import StatusIconRenderer
 from .legacy_app import BatteryAlertApp as LegacyBatteryAlertApp
+from .preferences_window import PreferencesWindowController
 from .updater import UpdateChecker
 
 
@@ -31,6 +33,10 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
             self.diagnostics_manager = DiagnosticsManager(self)
         if not hasattr(self, "battery_service"):
             self.battery_service = BatteryService(self.log_runtime)
+        if not hasattr(self, "preferences_window"):
+            self.preferences_window = PreferencesWindowController(self)
+        if not hasattr(self, "icon_renderer"):
+            self.icon_renderer = StatusIconRenderer(self)
 
     def _rumps_module(self) -> Any:
         gui_module = sys.modules.get("battery_alert_gui")

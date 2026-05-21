@@ -179,8 +179,10 @@ class AlertManager:
         )
 
     def show_preferences(self, _: Any) -> None:
-        """Show a summary of current user preferences."""
+        """Show a native preferences editor when available, otherwise fall back to summary."""
         try:
+            if self.app.preferences_window.present():
+                return
             self._rumps_module().alert("Preferences", self.format_settings_summary())
         except Exception as exc:
             self.app.log_runtime(f"Error in show_preferences: {exc}", level="error")
@@ -286,10 +288,13 @@ class AlertManager:
         self.app.show_maintenance_status(f"Update channel set to {self.app.settings['update_channel']}.")
 
     def update_menu_icon(self) -> None:
-        """Update menu bar icon with battery status."""
+        """Update menu bar icon with SF Symbols when available, otherwise emoji fallback."""
         try:
             battery_info = self.app.get_battery_info()
             level = battery_info["level"]
+
+            if self.app.icon_renderer.apply(level, bool(battery_info["is_charging"])):
+                return
 
             if battery_info["is_charging"]:
                 icon = "🔌"
