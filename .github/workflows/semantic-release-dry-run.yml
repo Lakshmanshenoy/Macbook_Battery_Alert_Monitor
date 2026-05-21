@@ -1,17 +1,15 @@
-name: Semantic Release
+name: Semantic Release Dry Run
 
 on:
-  push:
-    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *'
   workflow_dispatch:
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
 
 jobs:
-  semantic-release:
+  dry-run:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +21,7 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install semantic-release
+      - name: Install dependencies
         run: |
           if [ -f package-lock.json ]; then
             npm ci
@@ -31,9 +29,9 @@ jobs:
             npm install
           fi
 
-      - name: Run semantic-release
+      - name: Run semantic-release dry-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HUSKY: 0
         run: |
-          npx semantic-release
+          npx semantic-release --dry-run
