@@ -18,9 +18,42 @@ import zipfile
 import re
 import traceback
 import shutil
+import types
 from datetime import datetime
 from pathlib import Path
-import rumps
+
+try:
+    import rumps
+except ImportError:
+    rumps = types.ModuleType("rumps")
+
+    class _DummyApp:
+        def __init__(self, *args, **kwargs):
+            self.title = ""
+            self.menu = []
+
+        def run(self):
+            return None
+
+    class _DummyMenuItem:
+        def __init__(self, title, callback=None):
+            self.title = title
+            self.callback = callback
+
+    class _DummyWindow:
+        next_response = types.SimpleNamespace(clicked=False, text="")
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def run(self):
+            return _DummyWindow.next_response
+
+    rumps.App = _DummyApp
+    rumps.MenuItem = _DummyMenuItem
+    rumps.Window = _DummyWindow
+    rumps.alert = lambda *args, **kwargs: None
+    rumps.quit_application = lambda: None
 
 
 APP_VERSION = "1.1.0"
