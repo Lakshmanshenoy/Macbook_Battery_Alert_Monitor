@@ -65,15 +65,20 @@ run_fixers() {
   fi
 }
 
+run_lint() {
+  print_step "Running Ruff lint checks"
+  ruff check src/ tests/ --select E,F,W,I --ignore E501 --exclude src/battery_alert/legacy_app.py
+}
+
 run_tests() {
   print_step "Running pytest"
-  pytest -q
+  pytest -q || return 1
 
   print_step "Running release smoke test"
-  python3 scripts/release_smoke_test.py
+  python3 scripts/release_smoke_test.py || return 1
 
   print_step "Running synthetic artifact verification"
-  python3 scripts/run_pre_release_checks.py --skip-tests
+  python3 scripts/run_pre_release_checks.py --skip-tests || return 1
 }
 
 print_step "Starting project checks"
@@ -87,6 +92,16 @@ if ! run_syntax_check; then
   print_step "Syntax check failed, retrying once after fixer"
   run_fixers
   run_syntax_check
+fi
+
+if ! run_lint; then
+  if [[ "$CHECK_ONLY" == "true" ]]; then
+    print_step "Lint checks failed in CI mode"
+    exit 1
+  fi
+  print_step "Lint checks failed, applying Ruff auto-fixes for import sorting and retrying once"
+  ruff check src/ tests/ --select I --ignore E501 --exclude src/battery_alert/legacy_app.py --fix
+  run_lint
 fi
 
 if ! run_tests; then

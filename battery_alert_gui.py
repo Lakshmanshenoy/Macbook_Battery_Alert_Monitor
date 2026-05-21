@@ -44,10 +44,10 @@ except ImportError:
 
 from src.battery_alert.app import APP_VERSION, BatteryAlertApp
 from src.battery_alert.constants import (
-    CONFIG_SCHEMA_VERSION,
     APP_STATE_SCHEMA_VERSION,
-    UPDATE_STATE_SCHEMA_VERSION,
+    CONFIG_SCHEMA_VERSION,
     RELEASES_PAGE_URL,
+    UPDATE_STATE_SCHEMA_VERSION,
 )
 from src.battery_alert import legacy_app as _legacy_app
 
@@ -55,6 +55,16 @@ from src.battery_alert import legacy_app as _legacy_app
 _legacy_app.subprocess = subprocess
 _legacy_app.threading = threading
 _legacy_app.shutil = shutil
+
+__all__ = [
+    "APP_VERSION",
+    "APP_STATE_SCHEMA_VERSION",
+    "BatteryAlertApp",
+    "CONFIG_SCHEMA_VERSION",
+    "RELEASES_PAGE_URL",
+    "UPDATE_STATE_SCHEMA_VERSION",
+    "main",
+]
 
 
 def main() -> None:

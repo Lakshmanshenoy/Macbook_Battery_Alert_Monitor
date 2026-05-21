@@ -4,7 +4,6 @@ from __future__ import annotations
 import sys
 from typing import Any, Dict, Optional
 
-
 try:
     from AppKit import (  # type: ignore
         NSAlert,
@@ -12,11 +11,11 @@ try:
         NSButton,
         NSControlStateValueOff,
         NSControlStateValueOn,
+        NSMakeRect,
         NSPopUpButton,
+        NSSwitchButton,
         NSTextField,
         NSView,
-        NSMakeRect,
-        NSSwitchButton,
     )
 
     APPKIT_AVAILABLE = True
