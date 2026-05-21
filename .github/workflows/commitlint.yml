@@ -19,7 +19,11 @@ jobs:
 
       - name: Install commitlint
         run: |
-          npm ci
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Lint commits in PR
         uses: wagoid/commitlint-github-action@v4
