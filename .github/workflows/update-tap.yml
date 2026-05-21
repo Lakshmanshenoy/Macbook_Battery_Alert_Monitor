@@ -1,0 +1,30 @@
+name: Update Homebrew Tap
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-tap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tap repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.HOMEBREW_TAP }}
+          token: ${{ secrets.TAP_TOKEN }}
+          path: tap
+
+      - name: Download release DMG
+        run: |
+          RELEASE_URL=$(jq -r '.release.assets[0].browser_download_url' < $GITHUB_EVENT_PATH)
+          curl -L -o /tmp/Battery.Alert.dmg "$RELEASE_URL"
+          SHA=$(shasum -a 256 /tmp/Battery.Alert.dmg | awk '{print $1}')
+          echo "SHA=$SHA" > /tmp/release_sha.txt
+
+      - name: Update cask in tap
+        run: |
+          cd tap
+          ./scripts/update_cask.sh "/tmp/release_sha.txt" "${{ github.event.release.tag_name }}"
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}

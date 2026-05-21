@@ -1,0 +1,30 @@
+name: Bump Version (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Which part to bump: major, minor, patch'
+        required: true
+        default: 'patch'
+      version:
+        description: 'Optional explicit version to set (e.g. 1.2.3)'
+        required: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Make bump script executable
+        run: |
+          chmod +x scripts/bump_version.sh
+
+      - name: Bump version and push tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./scripts/bump_version.sh "${{ github.event.inputs.bump }}" "${{ github.event.inputs.version }}"
