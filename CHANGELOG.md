@@ -1,3 +1,10 @@
+## [1.1.4](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.1.3...v1.1.4) (2026-05-21)
+
+
+### Bug Fixes
+
+* **release:** use BattMon artifact path in manifest checks ([2599f45](https://github.com/Lakshmanshenoy/battmon-macos/commit/2599f45e684ab9dc17b0f1a542164fefcb8de60a))
+
 ## [1.1.3](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/compare/v1.1.2...v1.1.3) (2026-05-21)
 
 
