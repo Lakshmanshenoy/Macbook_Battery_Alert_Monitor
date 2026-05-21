@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/compare/v1.1.1...v1.1.2) (2026-05-21)
+
+
+### Bug Fixes
+
+* **tests:** remove unused imports, fix lambda, update version assertion to APP_VERSION ([04e3290](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/commit/04e3290b55e78259019710e892af3ac201a8b0fe))
+
 ## [1.1.1](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/compare/v1.1.0...v1.1.1) (2026-05-21)
 
 
