@@ -31,6 +31,20 @@ class DiagnosticsManager:
     def __init__(self, app: "LegacyBatteryAlertApp") -> None:
         self.app = app
 
+    def _subprocess_module(self):
+        gui_module = sys.modules.get("battery_alert_gui")
+        return getattr(gui_module, "subprocess", subprocess)
+
+    def _rumps_module(self):
+        gui_module = sys.modules.get("battery_alert_gui")
+        rumps = getattr(gui_module, "rumps", None)
+        if rumps is not None:
+            return rumps
+
+        import rumps as imported_rumps
+
+        return imported_rumps
+
     def check_runtime_dependencies(self) -> None:
         """Check required tools and track degraded runtime states."""
         missing_tools = []
@@ -183,10 +197,116 @@ class DiagnosticsManager:
             safe_title = title.replace('"', "'")
             safe_message = message.replace('"', "'")
             apple_script = f'display notification "{safe_message}" with title "{safe_title}"'
-            subprocess.run(["osascript", "-e", apple_script], capture_output=True, text=True)
+            self._subprocess_module().run(["osascript", "-e", apple_script], capture_output=True, text=True)
         except Exception as exc:
             self.log_runtime(f"Notification fallback failed: {exc}", level="warning")
         self.log_runtime(f"{title}: {message}")
+
+    def show_maintenance_status(self, message: str) -> None:
+        """Show concise non-blocking status for maintenance actions."""
+        self.app.show_non_blocking_feedback("Maintenance", message)
+
+    def build_usage_summary(self) -> str:
+        """Return a short summary of onboarding and maintenance metrics."""
+        state = self.app.app_state if hasattr(self.app, "app_state") and isinstance(self.app.app_state, dict) else {
+            **self.app.default_app_state_payload(),
+        }
+
+        return (
+            f"First launch completed: {state.get('first_launch_completed')}\n"
+            f"Onboarding shown at: {state.get('onboarding_shown_at') or 'never'}\n"
+            f"Release checks run: {state.get('release_checks_run', 0)}\n"
+            f"Support bundles exported: {state.get('support_bundle_exports', 0)}\n"
+            f"Last support bundle export: {state.get('last_support_bundle_export_at') or 'never'}\n"
+            f"Last update check: {state.get('last_update_check_at') or 'never'}\n"
+            f"Last update result: {state.get('last_update_status') or 'unknown'}\n"
+            f"Latest known release: {state.get('last_known_release_version') or 'unknown'}\n"
+            f"Latest known release URL: {state.get('last_known_release_url') or 'unknown'}\n"
+            f"Last crash report: {state.get('last_crash_report_at') or 'never'}\n"
+            f"Last release validation: {state.get('last_release_validation_at') or 'never'}"
+        )
+
+    def build_release_visibility_summary(self) -> str:
+        """Return a concise version and update visibility summary."""
+        state = self.app.app_state if hasattr(self.app, "app_state") and isinstance(self.app.app_state, dict) else {
+            **self.app.default_app_state_payload(),
+        }
+
+        return (
+            f"Current version: {APP_VERSION}\n"
+            f"Update channel: {self.app.settings.get('update_channel', UPDATE_CHANNEL)}\n"
+            f"Last checked: {state.get('last_update_check_at') or 'never'}\n"
+            f"Last result: {state.get('last_update_status') or 'unknown'}\n"
+            f"Latest known release: {state.get('last_known_release_version') or 'unknown'}\n"
+            f"Latest known release URL: {state.get('last_known_release_url') or 'unknown'}"
+        )
+
+    def build_status_summary(self, battery_info: Optional[Dict[str, Union[int, bool]]] = None) -> str:
+        """Return a rich operational status snapshot."""
+        battery_info = battery_info or self.app.get_battery_info()
+        power_source = "Charging" if battery_info["is_charging"] else "Discharging"
+        transition = self.app._last_power_transition or "No power transition observed yet"
+
+        return (
+            f"Battery level: {battery_info['level']}%\n"
+            f"Power source: {power_source}\n"
+            f"Last power transition: {transition}\n"
+            f"Threshold: {self.app.settings['battery_threshold']}%\n"
+            f"Check interval: {self.app.settings['check_interval']} seconds\n"
+            f"Alert cooldown: {self.app.settings['alert_cooldown_seconds']} seconds\n"
+            f"Last update check: {self.app.app_state.get('last_update_check_at') or 'never'}\n"
+            f"Last update result: {self.app.app_state.get('last_update_status') or 'unknown'}\n"
+            f"Latest known release: {self.app.app_state.get('last_known_release_version') or 'unknown'}\n"
+            f"Support bundles exported: {self.app.app_state.get('support_bundle_exports', 0)}\n"
+            f"Last crash report: {self.app.app_state.get('last_crash_report_at') or 'never'}\n"
+            f"Runtime degraded: {'yes' if self.app.runtime_health.get('is_degraded') else 'no'}\n"
+            f"Missing tools: {', '.join(self.app.runtime_health.get('missing_tools', [])) or 'none'}"
+        )
+
+    def check_status(self, _) -> None:
+        """Check and display current battery status."""
+        try:
+            battery_info = self.app.get_battery_info()
+            self._rumps_module().alert("System Status", self.app.build_status_summary(battery_info))
+        except Exception as exc:
+            self.app.log_runtime(f"Error in check_status: {exc}", level="error")
+
+    def test_alert(self, _) -> None:
+        """Trigger a manual test alert using the current battery level."""
+        try:
+            battery_level = self.app.get_battery_info()["level"]
+            self.app.trigger_alert(battery_level)
+            self._rumps_module().alert(
+                "Test alert sent using your current battery status.",
+                title="Test Alert",
+            )
+        except Exception as exc:
+            self.app.log_runtime(f"Error in test_alert: {exc}", level="error")
+            self._rumps_module().alert(f"Error: {exc}", title="Error")
+
+    def view_alert_history(self, _) -> None:
+        """View alert history."""
+        try:
+            if self.app.alert_history:
+                history_text = "Recent Alerts:\n\n"
+                for alert in reversed(self.app.alert_history[-20:]):
+                    history_text += f"{alert['time']} - {alert['battery_level']}%\n"
+            else:
+                history_text = "No alerts recorded yet. Your battery is healthy! ✅"
+
+            self._rumps_module().alert("Alert History", history_text)
+        except Exception as exc:
+            self.app.log_runtime(f"Error in view_alert_history: {exc}", level="error")
+
+    def copy_diagnostics(self, _) -> None:
+        """Copy diagnostics information to the clipboard."""
+        try:
+            diagnostics = self.app.build_diagnostics_report()
+            self._subprocess_module().run(["pbcopy"], input=diagnostics, text=True, check=True)
+            self._rumps_module().alert("Diagnostics copied to the clipboard.", title="Diagnostics")
+        except Exception as exc:
+            self.app.log_runtime(f"Error in copy_diagnostics: {exc}", level="error")
+            self._rumps_module().alert(f"Error: {exc}", title="Error")
 
     def redact_text_for_support_share(self, text: str) -> str:
         """Redact obvious local path/user information from shared diagnostics."""
@@ -241,6 +361,23 @@ class DiagnosticsManager:
             f"\nusage_summary:\n{self.app.build_usage_summary()}"
         )
 
+    def _battery_info_for_support_bundle(self) -> Dict[str, Union[int, bool]]:
+        """Build a non-throwing battery snapshot for support bundle generation."""
+        try:
+            service = getattr(self.app, "battery_service", None)
+            cache = getattr(service, "_cache", {}) if service is not None else {}
+            return {
+                "level": int(cache.get("level", 100)),
+                "is_charging": bool(cache.get("is_charging", False)),
+                "is_discharging": bool(cache.get("is_discharging", False)),
+            }
+        except Exception:
+            return {
+                "level": 100,
+                "is_charging": False,
+                "is_discharging": False,
+            }
+
     def cleanup_old_support_artifacts(self, keep_bundles: int = 10, keep_crash_reports: int = 10) -> None:
         """Remove older support bundles and crash reports to keep storage tidy."""
         bundles = sorted(self.app.config_dir.glob("support_bundle_*.zip"))
@@ -252,11 +389,22 @@ class DiagnosticsManager:
         for old_report in reports[:-keep_crash_reports]:
             old_report.unlink(missing_ok=True)
 
-    def export_support_bundle(self, preset: str = "full") -> Optional[Path]:
+    def create_support_bundle_archive(self, preset: str = "full") -> Optional[Path]:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         preset_suffix = "diag" if preset == "diagnostics" else "full"
         bundle_path = self.app.config_dir / f"support_bundle_{preset_suffix}_{timestamp}.zip"
-        diagnostics_text = self.build_diagnostics_report()
+
+        try:
+            diagnostics_text = self.build_diagnostics_report(self._battery_info_for_support_bundle())
+        except Exception as exc:
+            self.app.log_runtime(f"Falling back to minimal diagnostics report: {exc}", level="warning")
+            diagnostics_text = (
+                "Battery Alert Diagnostics\n"
+                f"timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"app_version: {APP_VERSION}\n"
+                "note: diagnostics fallback used due report generation error\n"
+            )
+
         redacted_diagnostics = self.redact_text_for_support_share(diagnostics_text)
         latest_crash_report = self.get_latest_crash_report_path()
 
@@ -323,3 +471,91 @@ class DiagnosticsManager:
 
         self.cleanup_old_support_artifacts()
         return bundle_path
+
+    def export_support_bundle(self, _) -> None:
+        """Generate a support zip bundle for troubleshooting."""
+        try:
+            bundle_path = self.create_support_bundle_archive(preset="full")
+            self.app.record_app_state_event("support_bundle_exports")
+            self.app.record_app_state_event("last_support_bundle_export_at", datetime.now().isoformat())
+            self.app.log_runtime(f"Support bundle exported to {bundle_path}")
+
+            try:
+                self._subprocess_module().run(["open", "-R", str(bundle_path)], check=False)
+            except Exception as exc:
+                self.app.log_runtime(f"Unable to reveal support bundle in Finder: {exc}", level="warning")
+
+            try:
+                self.app.show_maintenance_status("Support bundle export complete.")
+            except Exception as exc:
+                self.app.log_runtime(f"Unable to show maintenance status: {exc}", level="warning")
+
+            self.app.show_feedback(
+                "Support Bundle Exported",
+                f"Support bundle created at:\n{bundle_path}\n\n"
+                "Tip: Review safe_share_guide.txt in the bundle before sharing.",
+            )
+        except Exception as exc:
+            self.app.log_runtime(f"Failed to export support bundle: {exc}", level="warning")
+            self.app.show_feedback("Error", f"Failed to export support bundle: {exc}")
+
+    def export_diagnostics_bundle(self, _) -> None:
+        """Generate a diagnostics-only support bundle for lightweight triage."""
+        try:
+            bundle_path = self.create_support_bundle_archive(preset="diagnostics")
+            self.app.record_app_state_event("support_bundle_exports")
+            self.app.record_app_state_event("last_support_bundle_export_at", datetime.now().isoformat())
+            self.app.log_runtime(f"Diagnostics-only bundle exported to {bundle_path}")
+
+            try:
+                self._subprocess_module().run(["open", "-R", str(bundle_path)], check=False)
+            except Exception as exc:
+                self.app.log_runtime(f"Unable to reveal diagnostics bundle in Finder: {exc}", level="warning")
+
+            try:
+                self.app.show_maintenance_status("Diagnostics-only bundle export complete.")
+            except Exception as exc:
+                self.app.log_runtime(f"Unable to show maintenance status: {exc}", level="warning")
+        except Exception as exc:
+            self.app.log_runtime(f"Failed to export diagnostics-only bundle: {exc}", level="warning")
+            self.app.show_feedback("Error", f"Failed to export diagnostics-only bundle: {exc}")
+
+    def open_config_folder(self, _) -> None:
+        """Open the configuration directory in Finder."""
+        try:
+            self._subprocess_module().run(["open", str(self.app.config_dir)], check=True)
+        except Exception as exc:
+            self.app.log_runtime(f"Error in open_config_folder: {exc}", level="error")
+            self._rumps_module().alert(f"Error: {exc}", title="Error")
+
+    def show_about(self, _) -> None:
+        """Show about dialog."""
+        try:
+            about_text = f"""Battery Alert Monitor v{APP_VERSION}
+
+A professional battery monitoring tool for macOS.
+
+Keep your device powered and healthy! 🔋
+
+© 2024"""
+            self._rumps_module().alert("About Battery Alert", about_text)
+        except Exception as exc:
+            self.app.log_runtime(f"Error in show_about: {exc}", level="error")
+
+    def quit_app(self, _) -> None:
+        """Quit the application gracefully."""
+        try:
+            self.app.log_runtime("Application shutdown requested")
+            self.app.monitoring = False
+            self.app.stop_event.set()
+
+            if hasattr(self.app, "monitor_thread") and self.app.monitor_thread.is_alive():
+                self.app.monitor_thread.join(timeout=2)
+            if hasattr(self.app, "icon_update_thread") and self.app.icon_update_thread.is_alive():
+                self.app.icon_update_thread.join(timeout=2)
+
+            self.app.pid_file.unlink(missing_ok=True)
+            self._rumps_module().quit_application()
+        except Exception as exc:
+            self.app.log_runtime(f"Error quitting: {exc}", level="error")
+            self._rumps_module().quit_application()

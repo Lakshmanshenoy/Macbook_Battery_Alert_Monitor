@@ -225,6 +225,22 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         return self.diagnostics_manager.build_diagnostics_report(battery_info)
 
+    def show_maintenance_status(self, message: str) -> None:
+        self._ensure_managers()
+        self.diagnostics_manager.show_maintenance_status(message)
+
+    def build_usage_summary(self) -> str:
+        self._ensure_managers()
+        return self.diagnostics_manager.build_usage_summary()
+
+    def build_release_visibility_summary(self) -> str:
+        self._ensure_managers()
+        return self.diagnostics_manager.build_release_visibility_summary()
+
+    def build_status_summary(self, battery_info: Optional[Dict[str, Union[int, bool]]] = None) -> str:
+        self._ensure_managers()
+        return self.diagnostics_manager.build_status_summary(battery_info)
+
     def redact_text_for_support_share(self, text: str) -> str:
         self._ensure_managers()
         return self.diagnostics_manager.redact_text_for_support_share(text)
@@ -247,7 +263,43 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
 
     def create_support_bundle_archive(self, preset: str = "full") -> Optional[Path]:
         self._ensure_managers()
-        return self.diagnostics_manager.export_support_bundle(preset)
+        return self.diagnostics_manager.create_support_bundle_archive(preset)
+
+    def check_status(self, _):
+        self._ensure_managers()
+        self.diagnostics_manager.check_status(_)
+
+    def test_alert(self, _):
+        self._ensure_managers()
+        self.diagnostics_manager.test_alert(_)
+
+    def view_alert_history(self, _):
+        self._ensure_managers()
+        self.diagnostics_manager.view_alert_history(_)
+
+    def copy_diagnostics(self, _):
+        self._ensure_managers()
+        self.diagnostics_manager.copy_diagnostics(_)
+
+    def export_support_bundle(self, _):
+        self._ensure_managers()
+        self.diagnostics_manager.export_support_bundle(_)
+
+    def export_diagnostics_bundle(self, _):
+        self._ensure_managers()
+        self.diagnostics_manager.export_diagnostics_bundle(_)
+
+    def open_config_folder(self, _):
+        self._ensure_managers()
+        self.diagnostics_manager.open_config_folder(_)
+
+    def show_about(self, _):
+        self._ensure_managers()
+        self.diagnostics_manager.show_about(_)
+
+    def quit_app(self, _):
+        self._ensure_managers()
+        self.diagnostics_manager.quit_app(_)
 
     def check_for_updates(self, manual: bool = False) -> None:
         self._ensure_managers()
