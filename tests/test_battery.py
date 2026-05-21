@@ -1,10 +1,7 @@
 """Unit tests for BatteryService (src/battery_alert/battery.py)."""
-import time
-import types
-from unittest.mock import MagicMock, patch
-
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -26,9 +23,12 @@ PMSET_FULL = (
 )
 
 
+def _noop_logger(msg: str, level: str) -> None:
+    pass
+
+
 def _make_service() -> BatteryService:
-    logger = lambda msg, level: None
-    svc = BatteryService(logger)
+    svc = BatteryService(_noop_logger)
     # Reset cache so every call fetches fresh
     svc._cache["fetched_at"] = 0.0
     return svc

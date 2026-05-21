@@ -404,7 +404,7 @@ def test_build_release_visibility_summary_includes_update_state(tmp_path):
 
     summary = app.build_release_visibility_summary()
 
-    assert "Current version: 1.1.0" in summary
+    assert f"Current version: {battery_alert_module.APP_VERSION}" in summary
     assert "Update channel: stable" in summary
     assert "Last result: up_to_date" in summary
     assert "Latest known release: 1.1.0" in summary
