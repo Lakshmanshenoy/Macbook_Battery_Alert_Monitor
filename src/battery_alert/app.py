@@ -51,6 +51,18 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         self.config_manager.load_config()
 
+    def migrate_config_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        self._ensure_managers()
+        return self.config_manager.migrate_config_payload(payload)
+
+    def migrate_app_state_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        self._ensure_managers()
+        return self.config_manager.migrate_app_state_payload(payload)
+
+    def migrate_update_state_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        self._ensure_managers()
+        return self.config_manager.migrate_update_state_payload(payload)
+
     def save_config(self) -> None:
         self._ensure_managers()
         self.config_manager.save_config()
@@ -133,6 +145,10 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
     def check_for_updates(self, manual: bool = False) -> None:
         self._ensure_managers()
         return self.update_checker.check_for_updates(manual)
+
+    def get_latest_release(self):
+        self._ensure_managers()
+        return self.update_checker.get_latest_release()
 
     def download_latest_release(self, _: Any = None) -> None:
         self._ensure_managers()
