@@ -1,16 +1,27 @@
 # mypy: ignore-errors
+import json
 import logging
 import platform
+import re
 import shutil
 import subprocess
 import sys
 import traceback
+import zipfile
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Dict, Optional, Union
 
-from .constants import APP_VERSION, CRASH_REPORT_SCHEMA_VERSION, REQUIRED_RUNTIME_TOOLS
+from .constants import (
+    APP_STATE_SCHEMA_VERSION,
+    APP_VERSION,
+    CONFIG_SCHEMA_VERSION,
+    CRASH_REPORT_SCHEMA_VERSION,
+    REQUIRED_RUNTIME_TOOLS,
+    SUPPORT_BUNDLE_SCHEMA_VERSION,
+    UPDATE_CHANNEL,
+)
 from .legacy_app import BatteryAlertApp as LegacyBatteryAlertApp
 
 
@@ -177,11 +188,138 @@ class DiagnosticsManager:
             self.log_runtime(f"Notification fallback failed: {exc}", level="warning")
         self.log_runtime(f"{title}: {message}")
 
+    def redact_text_for_support_share(self, text: str) -> str:
+        """Redact obvious local path/user information from shared diagnostics."""
+        if not isinstance(text, str):
+            return ""
+        redacted = text.replace(str(Path.home()), "~")
+        redacted = re.sub(r"/Users/[^/\s]+", "/Users/<redacted-user>", redacted)
+        redacted = re.sub(
+            r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
+            "<redacted-email>",
+            redacted,
+        )
+        redacted = re.sub(
+            r"(?im)^(\s*(?:username|user|account)\s*[:=]\s*).+$",
+            r"\1<redacted-user>",
+            redacted,
+        )
+        return redacted
+
     def build_diagnostics_report(
         self,
         battery_info: Optional[Dict[str, Union[int, bool]]] = None,
     ) -> str:
-        return LegacyBatteryAlertApp.build_diagnostics_report(self.app, battery_info)
+        battery_info = battery_info or self.app.get_battery_info()
+        last_alert = self.app.alert_history[-1]["time"] if self.app.alert_history else "never"
+
+        return (
+            "Battery Alert Diagnostics\n"
+            f"timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"python: {sys.version.split()[0]}\n"
+            f"platform: {platform.platform()}\n"
+            f"battery_level: {battery_info['level']}\n"
+            f"charging: {battery_info['is_charging']}\n"
+            f"discharging: {battery_info['is_discharging']}\n"
+            f"threshold: {self.app.settings['battery_threshold']}\n"
+            f"check_interval: {self.app.settings['check_interval']}\n"
+            f"alert_cooldown_seconds: {self.app.settings['alert_cooldown_seconds']}\n"
+            f"sound_enabled: {self.app.settings['enable_sound']}\n"
+            f"voice_enabled: {self.app.settings['enable_voice']}\n"
+            f"notifications_enabled: {self.app.settings['enable_notifications']}\n"
+            f"auto_launch: {self.app.settings['auto_launch']}\n"
+            f"update_checks_enabled: {self.app.settings['enable_update_checks']}\n"
+            f"update_channel: {self.app.settings.get('update_channel', UPDATE_CHANNEL)}\n"
+            f"runtime_degraded: {self.app.runtime_health.get('is_degraded')}\n"
+            f"missing_runtime_tools: {', '.join(self.app.runtime_health.get('missing_tools', [])) or 'none'}\n"
+            f"app_version: {APP_VERSION}\n"
+            f"alert_history_entries: {len(self.app.alert_history)}\n"
+            f"last_alert: {last_alert}\n"
+            f"config_file: {self.app.config_file}\n"
+            f"log_file: {self.app.log_file}\n"
+            f"runtime_log_file: {self.app.runtime_log_file}\n"
+            f"\nusage_summary:\n{self.app.build_usage_summary()}"
+        )
+
+    def cleanup_old_support_artifacts(self, keep_bundles: int = 10, keep_crash_reports: int = 10) -> None:
+        """Remove older support bundles and crash reports to keep storage tidy."""
+        bundles = sorted(self.app.config_dir.glob("support_bundle_*.zip"))
+        for old_bundle in bundles[:-keep_bundles]:
+            old_bundle.unlink(missing_ok=True)
+
+        crash_reports_dir = getattr(self.app, "crash_reports_dir", self.app.config_dir / "crash_reports")
+        reports = sorted(crash_reports_dir.glob("crash_report_*.json")) if crash_reports_dir.exists() else []
+        for old_report in reports[:-keep_crash_reports]:
+            old_report.unlink(missing_ok=True)
 
     def export_support_bundle(self, preset: str = "full") -> Optional[Path]:
-        return LegacyBatteryAlertApp.create_support_bundle_archive(self.app, preset)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        preset_suffix = "diag" if preset == "diagnostics" else "full"
+        bundle_path = self.app.config_dir / f"support_bundle_{preset_suffix}_{timestamp}.zip"
+        diagnostics_text = self.build_diagnostics_report()
+        redacted_diagnostics = self.redact_text_for_support_share(diagnostics_text)
+        latest_crash_report = self.get_latest_crash_report_path()
+
+        manifest = {
+            "support_bundle_schema_version": SUPPORT_BUNDLE_SCHEMA_VERSION,
+            "app_version": APP_VERSION,
+            "created_at": datetime.now().isoformat(),
+            "config_schema_version": self.app.settings.get("config_schema_version", CONFIG_SCHEMA_VERSION),
+            "app_state_schema_version": self.app.app_state.get("app_state_schema_version", APP_STATE_SCHEMA_VERSION),
+            "crash_report_schema_version": CRASH_REPORT_SCHEMA_VERSION,
+            "included_files": [
+                "diagnostics.txt",
+                "safe_share_guide.txt",
+                "manifest.json",
+            ],
+            "preset": preset,
+        }
+
+        if preset != "diagnostics":
+            manifest["included_files"].extend([
+                "config.json",
+                "alert_history.json",
+                "logs/battery_alert.log",
+            ])
+
+        if latest_crash_report is not None:
+            manifest["included_files"].append("crash_reports/latest_crash_report.json")
+
+        if preset != "diagnostics":
+            rotated_logs = sorted(self.app.runtime_log_file.parent.glob("battery_alert.log.*"))
+            for rotated_log in rotated_logs:
+                manifest["included_files"].append(f"logs/{rotated_log.name}")
+
+        safe_share_guide = (
+            "Support Bundle Safe-Share Guide\n"
+            "- Review diagnostics.txt before sharing externally.\n"
+            "- Redacted diagnostics replace your home directory with '~'.\n"
+            "- Crash reports are included when available and may mention code paths or thread names.\n"
+            "- Remove files you do not want to share before sending.\n"
+        )
+
+        with zipfile.ZipFile(bundle_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("diagnostics.txt", redacted_diagnostics)
+            archive.writestr("safe_share_guide.txt", safe_share_guide)
+            archive.writestr("manifest.json", json.dumps(manifest, indent=2))
+
+            if preset != "diagnostics":
+                if self.app.config_file.exists():
+                    archive.write(self.app.config_file, arcname="config.json")
+                if self.app.log_file.exists():
+                    archive.write(self.app.log_file, arcname="alert_history.json")
+                if self.app.runtime_log_file.exists():
+                    archive.write(self.app.runtime_log_file, arcname="logs/battery_alert.log")
+
+            if latest_crash_report is not None and latest_crash_report.exists():
+                archive.writestr(
+                    "crash_reports/latest_crash_report.json",
+                    self.redact_text_for_support_share(latest_crash_report.read_text(encoding="utf-8")),
+                )
+
+            if preset != "diagnostics":
+                for rotated_log in self.app.runtime_log_file.parent.glob("battery_alert.log.*"):
+                    archive.write(rotated_log, arcname=f"logs/{rotated_log.name}")
+
+        self.cleanup_old_support_artifacts()
+        return bundle_path

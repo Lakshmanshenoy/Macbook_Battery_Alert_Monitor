@@ -154,6 +154,14 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         return self.diagnostics_manager.build_diagnostics_report(battery_info)
 
+    def redact_text_for_support_share(self, text: str) -> str:
+        self._ensure_managers()
+        return self.diagnostics_manager.redact_text_for_support_share(text)
+
+    def cleanup_old_support_artifacts(self, keep_bundles: int = 10, keep_crash_reports: int = 10) -> None:
+        self._ensure_managers()
+        self.diagnostics_manager.cleanup_old_support_artifacts(keep_bundles, keep_crash_reports)
+
     def get_latest_crash_report_path(self) -> Optional[Path]:
         self._ensure_managers()
         return self.diagnostics_manager.get_latest_crash_report_path()
