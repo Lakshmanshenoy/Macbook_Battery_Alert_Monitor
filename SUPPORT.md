@@ -8,11 +8,11 @@ Verifying downloads
 - Check the SHA256 checksum provided in the release assets before opening downloaded files.
 - Verify the app is signed by running:
 
-  spctl --assess --type execute --verbose=4 /Applications/\"Battery Alert.app\"
+  spctl --assess --type execute --verbose=4 /Applications/\"BattMon.app\"
 
 - Or check codesign details:
 
-  codesign -dv --verbose=4 /Applications/\"Battery Alert.app\"
+  codesign -dv --verbose=4 /Applications/\"BattMon.app\"
 
 Reporting security issues
 - Please open an issue or email the maintainer with steps to reproduce. Sensitive security reports may be handled privately on request.

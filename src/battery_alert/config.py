@@ -244,7 +244,7 @@ class ConfigManager:
     def onboarding_summary(self) -> str:
         """Return a short onboarding summary for new users."""
         return (
-            "Welcome to Battery Alert Monitor.\n\n"
+            "Welcome to BattMon.\n\n"
             "Quick start:\n"
             "1. Set Battery Threshold and Alert Cooldown from the menu.\n"
             "2. Use Check for Updates or Run Release Check from the maintenance menu.\n"
@@ -269,7 +269,7 @@ class ConfigManager:
         self.app.save_app_state()
         self.app.show_non_blocking_feedback(
             "Welcome",
-            "Battery Alert is ready. Open Getting Started for a short tour of the main settings.",
+            "BattMon is ready. Open Getting Started for a short tour of the main settings.",
         )
 
     def is_process_running(self, pid: int) -> bool:
@@ -300,7 +300,7 @@ class ConfigManager:
                 return
 
             if self.app._is_process_running(existing_pid):
-                raise RuntimeError("Battery Alert is already running.")
+                raise RuntimeError("BattMon is already running.")
 
             self.app.pid_file.unlink(missing_ok=True)
         except ValueError:
@@ -327,7 +327,7 @@ class ConfigManager:
     <array>
         <string>/usr/bin/open</string>
         <string>-a</string>
-        <string>Battery Alert</string>
+        <string>BattMon</string>
         <string>--background</string>
     </array>
     <key>RunAtLoad</key>
@@ -348,7 +348,7 @@ class ConfigManager:
                 self._subprocess_module().run(["launchctl", "load", str(plist_file)], capture_output=True)
                 self.app.log_runtime(f"Enabled - LaunchAgent plist: {plist_file}")
                 self.app.log_runtime(
-                    "To see it with app name in login items, add Battery Alert.app to System Settings > General > Login Items"
+                    "To see it with app name in login items, add BattMon.app to System Settings > General > Login Items"
                 )
             elif plist_file.exists():
                 self._subprocess_module().run(["launchctl", "unload", str(plist_file)], capture_output=True)

@@ -33,7 +33,7 @@ def run_synthetic_artifact_check(cwd: Path) -> None:
         temp_dir = Path(temp_dir_raw)
         artifact_dir = temp_dir / "artifacts"
         artifact_dir.mkdir(parents=True, exist_ok=True)
-        artifact_path = artifact_dir / "Battery Alert.dmg"
+        artifact_path = artifact_dir / "BattMon.dmg"
         artifact_path.write_text("pre-release synthetic artifact", encoding="utf-8")
 
         checksums_path = temp_dir / "checksums.txt"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the staged DMG background image for Battery Alert."""
+"""Generate the staged DMG background image for BattMon."""
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -49,7 +49,7 @@ def main() -> None:
     )
 
     font = _load_font(18)
-    text = "Drag Battery Alert to Applications"
+    text = "Drag BattMon to Applications"
     bbox = draw.textbbox((0, 0), text, font=font)
     text_width = bbox[2] - bbox[0]
     draw.text(((WIDTH - text_width) // 2, HEIGHT - 34), text, fill=(255, 255, 255, 165), font=font)

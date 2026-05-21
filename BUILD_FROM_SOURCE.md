@@ -1,4 +1,4 @@
-# Build Battery Alert Monitor from Source
+# Build BattMon from Source
 
 No Apple Developer account required. These steps produce a runnable app and distributable DMG from source code.
 
@@ -12,8 +12,8 @@ No Apple Developer account required. These steps produce a runnable app and dist
 ## Step 1 — Clone the repository
 
 ```bash
-git clone https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor.git
-cd Macbook_Battery_Alert_Monitor
+git clone https://github.com/Lakshmanshenoy/battmon-macos.git
+cd battmon-macos
 ```
 
 ## Step 2 — Set up the environment (one-time)
@@ -43,7 +43,7 @@ This runs the following PyInstaller command under the hood (reproducible):
 
 ```bash
 pyinstaller \
-    --name "Battery Alert" \
+    --name "BattMon" \
     --windowed \
     --icon=BatteryAlert.icns \
     --osx-bundle-identifier="com.batteryalert.app" \
@@ -51,7 +51,7 @@ pyinstaller \
     battery_alert_gui.py
 ```
 
-Output: `dist/Battery Alert.app`
+Output: `dist/BattMon.app`
 
 ## Step 5 — Create DMG installer (optional, for sharing)
 
@@ -59,16 +59,16 @@ Output: `dist/Battery Alert.app`
 bash create_dmg.sh
 ```
 
-Output: `Battery Alert.dmg` (~10 MB)
+Output: `BattMon.dmg` (~10 MB)
 
 ---
 
 ## Verify your build matches the official release
 
-Generate a SHA256 checksum of your locally built DMG and compare it to the value published in [GitHub Releases](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/releases):
+Generate a SHA256 checksum of your locally built DMG and compare it to the value published in [GitHub Releases](https://github.com/Lakshmanshenoy/battmon-macos/releases):
 
 ```bash
-shasum -a 256 "Battery Alert.dmg"
+shasum -a 256 "BattMon.dmg"
 ```
 
 If the checksums match, your build is byte-for-byte identical to the official one.
@@ -79,7 +79,7 @@ If the checksums match, your build is byte-for-byte identical to the official on
 
 macOS shows a warning for apps that are not notarized. To open anyway:
 
-1. Right-click `Battery Alert.app` → **Open**
+1. Right-click `BattMon.app` → **Open**
 2. Click **Open** in the security dialog
 
 Or via System Settings → Privacy & Security → scroll to the blocked app → **Open Anyway**
@@ -87,7 +87,7 @@ Or via System Settings → Privacy & Security → scroll to the blocked app → 
 Or via terminal:
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/Battery Alert.app"
+xattr -dr com.apple.quarantine "/Applications/BattMon.app"
 ```
 
 ---

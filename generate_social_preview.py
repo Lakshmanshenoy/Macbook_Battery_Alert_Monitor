@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a GitHub social preview image for Battery Alert Monitor.
+"""Generate a GitHub social preview image for BattMon.
 
 Supports interactive prompt and CLI args: `python3 generate_social_preview.py 1280 640`
 If run without args, the script will ask for a size (e.g. 1280x640) and create
@@ -98,7 +98,7 @@ def generate_image(width: int, height: int, outfile: str):
         font_title = ImageFont.load_default()
         font_sub = ImageFont.load_default()
 
-    title = "Battery Alert Monitor"
+    title = "BattMon"
     subtitle = "Lightweight macOS app — real-time battery monitoring & alerts"
 
     text_x = battery_x + battery_w + int(WIDTH * 0.046)

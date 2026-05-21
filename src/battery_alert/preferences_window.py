@@ -179,7 +179,7 @@ class PreferencesWindowController:
                 2,
                 False,
             )
-            panel.setTitle_("Battery Alert Preferences")
+            panel.setTitle_("BattMon Preferences")
             panel.setFloatingPanel_(True)
 
             effect_view = NSVisualEffectView.alloc().initWithFrame_(NSMakeRect(0, 0, 420, 440))

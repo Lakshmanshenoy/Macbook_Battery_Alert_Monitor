@@ -1,6 +1,6 @@
 # Release QA Checklist
 
-Use this checklist before cutting a tagged release for Battery Alert Monitor.
+Use this checklist before cutting a tagged release for BattMon.
 
 ## Local Validation
 

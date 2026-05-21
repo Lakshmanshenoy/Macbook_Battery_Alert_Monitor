@@ -3,7 +3,7 @@ set -euo pipefail
 
 echo "🖼️  Creating DMG installer..."
 
-APP_NAME="Battery Alert"
+APP_NAME="BattMon"
 APP_BUNDLE="dist/${APP_NAME}.app"
 DMG_TEMP="dist/${APP_NAME}_temp.dmg"
 DMG_FINAL_DIST="dist/${APP_NAME}.dmg"

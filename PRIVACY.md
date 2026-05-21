@@ -1,4 +1,4 @@
-# Privacy Policy — Battery Alert Monitor
+# Privacy Policy — BattMon
 
 Short summary
 - This app does not collect or transmit personal data by default.

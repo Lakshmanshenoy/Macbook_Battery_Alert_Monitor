@@ -6,12 +6,12 @@ from scripts.generate_release_notes import generate_release_notes
 
 
 def test_build_release_manifest_matches_checksum(tmp_path):
-    artifact = Path(tmp_path) / "Battery Alert.dmg"
+    artifact = Path(tmp_path) / "BattMon.dmg"
     artifact.write_bytes(b"artifact-bytes")
 
     checksums = Path(tmp_path) / "checksums.txt"
     checksums.write_text(
-        "3b1812672047ec0d1f0f8f1fc016c0fb4f1f1caf9cf8bb291c8ac62df13f2e05  Battery Alert.dmg\n",
+        "3b1812672047ec0d1f0f8f1fc016c0fb4f1f1caf9cf8bb291c8ac62df13f2e05  BattMon.dmg\n",
         encoding="utf-8",
     )
 
@@ -24,7 +24,7 @@ def test_build_release_manifest_matches_checksum(tmp_path):
     )
 
     assert manifest["version"] == "1.2.0"
-    assert manifest["artifact"]["name"] == "Battery Alert.dmg"
+    assert manifest["artifact"]["name"] == "BattMon.dmg"
     assert manifest["artifact"]["expected_sha256"] is not None
     assert manifest["checksums_file"] == "checksums.txt"
 
@@ -50,11 +50,11 @@ def test_generate_release_notes_includes_heading(tmp_path):
 
 
 def test_release_manifest_serializes_to_json(tmp_path):
-    artifact = Path(tmp_path) / "Battery Alert.dmg"
+    artifact = Path(tmp_path) / "BattMon.dmg"
     artifact.write_bytes(b"artifact-bytes")
     checksums = Path(tmp_path) / "checksums.txt"
     checksums.write_text(
-        "3b1812672047ec0d1f0f8f1fc016c0fb4f1f1caf9cf8bb291c8ac62df13f2e05  Battery Alert.dmg\n",
+        "3b1812672047ec0d1f0f8f1fc016c0fb4f1f1caf9cf8bb291c8ac62df13f2e05  BattMon.dmg\n",
         encoding="utf-8",
     )
 

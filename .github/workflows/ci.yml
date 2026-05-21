@@ -83,7 +83,7 @@ jobs:
         with:
           name: ci-synthetic-release
           path: |
-            tmp_release/Battery Alert.dmg
+            tmp_release/BattMon.dmg
             checksums.txt
 
   verify-uploaded-artifact:

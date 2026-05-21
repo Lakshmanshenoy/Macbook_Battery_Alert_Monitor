@@ -334,7 +334,7 @@ class DiagnosticsManager:
         last_alert = self.app.alert_history[-1]["time"] if self.app.alert_history else "never"
 
         return (
-            "Battery Alert Diagnostics\n"
+            "BattMon Diagnostics\n"
             f"timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"python: {sys.version.split()[0]}\n"
             f"platform: {platform.platform()}\n"
@@ -399,7 +399,7 @@ class DiagnosticsManager:
         except Exception as exc:
             self.app.log_runtime(f"Falling back to minimal diagnostics report: {exc}", level="warning")
             diagnostics_text = (
-                "Battery Alert Diagnostics\n"
+                "BattMon Diagnostics\n"
                 f"timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
                 f"app_version: {APP_VERSION}\n"
                 "note: diagnostics fallback used due report generation error\n"
@@ -531,14 +531,14 @@ class DiagnosticsManager:
     def show_about(self, _: Any) -> None:
         """Show about dialog."""
         try:
-            about_text = f"""Battery Alert Monitor v{APP_VERSION}
+            about_text = f"""BattMon v{APP_VERSION}
 
-A professional battery monitoring tool for macOS.
+Lightweight battery alert monitor for macOS.
 
 Keep your device powered and healthy! 🔋
 
 © 2024"""
-            self._rumps_module().alert("About Battery Alert", about_text)
+            self._rumps_module().alert("About BattMon", about_text)
         except Exception as exc:
             self.app.log_runtime(f"Error in show_about: {exc}", level="error")
 

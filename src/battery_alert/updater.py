@@ -220,7 +220,7 @@ class UpdateChecker:
         api_url = LATEST_STABLE_RELEASE_API if update_channel == "stable" else RELEASES_API
         request = urllib.request.Request(
             api_url,
-            headers={"Accept": "application/vnd.github+json", "User-Agent": "battery-alert-monitor"},
+            headers={"Accept": "application/vnd.github+json", "User-Agent": "battmon-macos"},
         )
         with urllib.request.urlopen(request, timeout=6) as response:
             payload = json.loads(response.read().decode("utf-8"))

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Non-interactive release smoke test for Battery Alert Monitor.
+"""Non-interactive release smoke test for BattMon.
 
 This checks the release-critical behavior without launching the GUI:
 - settings validation

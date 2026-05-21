@@ -1,7 +1,7 @@
 APP_VERSION = "1.1.2"
-LATEST_STABLE_RELEASE_API = "https://api.github.com/repos/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/releases/latest"
-RELEASES_API = "https://api.github.com/repos/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/releases"
-RELEASES_PAGE_URL = "https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/releases"
+LATEST_STABLE_RELEASE_API = "https://api.github.com/repos/Lakshmanshenoy/battmon-macos/releases/latest"
+RELEASES_API = "https://api.github.com/repos/Lakshmanshenoy/battmon-macos/releases"
+RELEASES_PAGE_URL = "https://github.com/Lakshmanshenoy/battmon-macos/releases"
 UPDATE_CHANNEL = "stable"
 CONFIG_SCHEMA_VERSION = 2
 APP_STATE_SCHEMA_VERSION = 4

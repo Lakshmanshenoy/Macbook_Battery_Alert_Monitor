@@ -52,7 +52,7 @@ jobs:
             exit 0
           fi
           codesign --deep --force --options runtime --timestamp \
-            --sign "$MACOS_SIGNING_IDENTITY" "dist/Battery Alert.app"
+            --sign "$MACOS_SIGNING_IDENTITY" "dist/BattMon.app"
 
       - name: Verify app signature
         env:
@@ -63,7 +63,7 @@ jobs:
             echo "Skipping app signature verification (identity or cert secret not configured)."
             exit 0
           fi
-          codesign --verify --deep --strict --verbose=2 "dist/Battery Alert.app"
+          codesign --verify --deep --strict --verbose=2 "dist/BattMon.app"
 
       - name: Create DMG
         run: |
@@ -78,7 +78,7 @@ jobs:
             echo "Skipping DMG codesign (identity or cert secret not configured)."
             exit 0
           fi
-          codesign --force --timestamp --sign "$MACOS_SIGNING_IDENTITY" "Battery Alert.dmg"
+          codesign --force --timestamp --sign "$MACOS_SIGNING_IDENTITY" "BattMon.dmg"
 
       - name: Verify DMG signature
         env:
@@ -89,7 +89,7 @@ jobs:
             echo "Skipping DMG signature verification (identity or cert secret not configured)."
             exit 0
           fi
-          codesign --verify --deep --strict --verbose=2 "Battery Alert.dmg"
+          codesign --verify --deep --strict --verbose=2 "BattMon.dmg"
 
       - name: Notarize DMG
         env:
@@ -101,7 +101,7 @@ jobs:
             echo "Skipping notarization (Apple notarization secrets not configured)."
             exit 0
           fi
-          xcrun notarytool submit "Battery Alert.dmg" \
+          xcrun notarytool submit "BattMon.dmg" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
@@ -117,7 +117,7 @@ jobs:
             echo "Skipping stapling (Apple notarization secrets not configured)."
             exit 0
           fi
-          xcrun stapler staple "Battery Alert.dmg"
+          xcrun stapler staple "BattMon.dmg"
 
       - name: Validate stapled ticket
         env:
@@ -129,13 +129,13 @@ jobs:
             echo "Skipping stapled ticket validation (Apple notarization secrets not configured)."
             exit 0
           fi
-          xcrun stapler validate "Battery Alert.dmg"
+          xcrun stapler validate "BattMon.dmg"
 
       - name: Generate SHA256 checksums
         run: |
           mkdir -p release_artifacts
-          cp "Battery Alert.dmg" release_artifacts/
-          bash scripts/generate_checksums.sh release_artifacts/"Battery Alert.dmg"
+          cp "BattMon.dmg" release_artifacts/
+          bash scripts/generate_checksums.sh release_artifacts/"BattMon.dmg"
 
       - name: GPG sign checksums
         env:
@@ -187,7 +187,7 @@ jobs:
         with:
           body_path: RELEASE_DRAFT.md
           files: |
-            release_artifacts/Battery Alert.dmg
+            release_artifacts/BattMon.dmg
             release_artifacts/checksums.txt
             release_artifacts/checksums.txt.asc
             release_artifacts/maintainer_public_key.asc

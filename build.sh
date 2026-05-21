@@ -1,7 +1,7 @@
 #!/bin/bash
-# Build script for Battery Alert App
+# Build script for BattMon App
 
-echo "🔨 Building Battery Alert macOS App..."
+echo "🔨 Building BattMon macOS App..."
 echo ""
 
 # Activate virtual environment
@@ -30,7 +30,7 @@ rm -rf build dist *.spec
 echo "📦 Creating macOS app bundle..."
 export BATTERY_ALERT_BUILD=release
 pyinstaller \
-    --name "Battery Alert" \
+    --name "BattMon" \
     --windowed \
     --icon=BatteryAlert.icns \
     --osx-bundle-identifier="com.batteryalert.app" \
@@ -41,10 +41,10 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "✅ App built successfully!"
     echo ""
-    echo "📁 Location: $(pwd)/dist/Battery Alert.app"
+    echo "📁 Location: $(pwd)/dist/BattMon.app"
     echo ""
     echo "Next steps:"
-    echo "1. Copy 'Battery Alert.app' to your Applications folder"
+    echo "1. Copy 'BattMon.app' to your Applications folder"
     echo "2. Launch it like any other macOS app"
     echo ""
 else

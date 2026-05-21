@@ -17,7 +17,7 @@ API_ROOT = "https://api.github.com/repos"
 def fetch_release(owner: str, repo: str, tag: str, token: str = "") -> dict:
     """Fetch release metadata by tag."""
     url = f"{API_ROOT}/{owner}/{repo}/releases/tags/{tag}"
-    headers = {"Accept": "application/vnd.github+json", "User-Agent": "battery-alert-monitor"}
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "battmon-macos"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
@@ -28,7 +28,7 @@ def fetch_release(owner: str, repo: str, tag: str, token: str = "") -> dict:
 
 def download_asset(asset_url: str, output_path: Path, token: str = "") -> None:
     """Download one GitHub release asset."""
-    headers = {"Accept": "application/octet-stream", "User-Agent": "battery-alert-monitor"}
+    headers = {"Accept": "application/octet-stream", "User-Agent": "battmon-macos"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
 

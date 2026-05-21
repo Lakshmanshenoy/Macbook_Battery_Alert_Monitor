@@ -1,6 +1,6 @@
 # Release Runbook
 
-Use this runbook when preparing a Battery Alert Monitor release.
+Use this runbook when preparing a BattMon release.
 
 ## Local preparation
 
@@ -19,7 +19,7 @@ Use this runbook when preparing a Battery Alert Monitor release.
 1. Trigger the release workflow with `workflow_dispatch`.
 2. Confirm build, checksum generation, artifact upload, and verification steps all pass.
 3. Confirm `release_manifest.json` is generated and uploaded with release artifacts.
-4. Download the uploaded workflow artifact and inspect `Battery Alert.dmg`, `checksums.txt`, and signing outputs.
+4. Download the uploaded workflow artifact and inspect `BattMon.dmg`, `checksums.txt`, and signing outputs.
 
 ## Tagged release
 

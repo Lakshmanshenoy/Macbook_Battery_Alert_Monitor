@@ -4,7 +4,7 @@
 set -e  # Exit on error
 
 echo "═══════════════════════════════════════════════════"
-echo "  🔋 Battery Alert Monitor - Setup & Build"
+echo "  🔋 BattMon - Setup & Build"
 echo "═══════════════════════════════════════════════════"
 echo ""
 

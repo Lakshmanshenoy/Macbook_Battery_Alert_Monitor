@@ -83,7 +83,7 @@ class AlertManager:
             try:
                 apple_script = (
                     f'display notification "Battery at {battery_level}%! Please charge your device." '
-                    'with title "Low Battery Alert"'
+                    'with title "BattMon Alert"'
                 )
                 result = subprocess.run(["osascript", "-e", apple_script], capture_output=True, text=True)
                 if result.returncode != 0:

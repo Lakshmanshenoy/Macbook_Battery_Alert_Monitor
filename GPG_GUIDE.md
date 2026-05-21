@@ -64,7 +64,7 @@ This produces:
 - `checksums.txt.asc` — detached signature
 - `maintainer_public_key.asc` — exportable public key
 
-Upload both along with `checksums.txt` and `Battery Alert.dmg` to your GitHub Release.
+Upload both along with `checksums.txt` and `BattMon.dmg` to your GitHub Release.
 
 ---
 
@@ -95,7 +95,7 @@ Expected output includes `Good signature from "Your Name <email>"`.
 ### 3. Verify the DMG checksum
 
 ```bash
-shasum -a 256 "Battery Alert.dmg"
+shasum -a 256 "BattMon.dmg"
 # Compare this output to the line in checksums.txt
 ```
 
@@ -108,7 +108,7 @@ Maintainer GPG key (public key published in repo + keyserver)
     ↓ signs
 checksums.txt  (SHA256 of each release artifact)
     ↓ verifies
-Battery Alert.dmg  (the release artifact)
+BattMon.dmg  (the release artifact)
 ```
 
 Users who verify this chain can be confident the DMG has not been tampered with.

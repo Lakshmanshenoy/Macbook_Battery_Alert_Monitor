@@ -3,7 +3,7 @@
 Provide these steps to users so they can confirm file integrity and provenance.
 
 1) Check SHA256 checksum
-- After downloading `Battery Alert.dmg`, compare its SHA256 checksum with the value published in the release notes.
+- After downloading `BattMon.dmg`, compare its SHA256 checksum with the value published in the release notes.
 
 macOS:
 ```bash
@@ -14,19 +14,19 @@ shasum -a 256 Battery\ Alert.dmg
 - After copying the app to `/Applications`, run:
 
 ```bash
-spctl --assess --type execute --verbose=4 "/Applications/Battery Alert.app"
+spctl --assess --type execute --verbose=4 "/Applications/BattMon.app"
 ```
 
 - Check the codesign information:
 
 ```bash
-codesign -dv --verbose=4 "/Applications/Battery Alert.app"
+codesign -dv --verbose=4 "/Applications/BattMon.app"
 ```
 
 - Check stapler (optional):
 
 ```bash
-xcrun stapler validate "/Applications/Battery Alert.app"
+xcrun stapler validate "/Applications/BattMon.app"
 ```
 
 3) Verify GPG signature (optional)

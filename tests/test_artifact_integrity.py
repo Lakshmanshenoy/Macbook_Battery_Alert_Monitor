@@ -4,7 +4,7 @@ from scripts.verify_release_artifacts import compute_sha256, verify_artifact
 
 
 def test_verify_artifact_passes_for_matching_checksum(tmp_path):
-    artifact = Path(tmp_path) / "Battery Alert.dmg"
+    artifact = Path(tmp_path) / "BattMon.dmg"
     artifact.write_bytes(b"demo artifact")
 
     digest = compute_sha256(artifact)
@@ -18,7 +18,7 @@ def test_verify_artifact_passes_for_matching_checksum(tmp_path):
 
 
 def test_verify_artifact_fails_for_mismatch(tmp_path):
-    artifact = Path(tmp_path) / "Battery Alert.dmg"
+    artifact = Path(tmp_path) / "BattMon.dmg"
     artifact.write_bytes(b"demo artifact")
 
     checksums = Path(tmp_path) / "checksums.txt"
@@ -31,7 +31,7 @@ def test_verify_artifact_fails_for_mismatch(tmp_path):
 
 
 def test_verify_artifact_passes_when_checksum_entry_uses_path(tmp_path):
-    artifact = Path(tmp_path) / "Battery Alert.dmg"
+    artifact = Path(tmp_path) / "BattMon.dmg"
     artifact.write_bytes(b"demo artifact")
 
     digest = compute_sha256(artifact)

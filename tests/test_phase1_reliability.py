@@ -216,7 +216,7 @@ def test_build_diagnostics_report_includes_support_context(tmp_path):
         {"level": 18, "is_charging": False, "is_discharging": True}
     )
 
-    assert "Battery Alert Diagnostics" in report
+    assert "BattMon Diagnostics" in report
     assert "battery_level: 18" in report
     assert "alert_history_entries: 1" in report
     assert "last_alert: 2026-01-01 10:00:00" in report
@@ -562,7 +562,7 @@ def test_first_run_onboarding_marks_state_and_is_idempotent(tmp_path, monkeypatc
     assert shown == [
         (
             "Welcome",
-            "Battery Alert is ready. Open Getting Started for a short tour of the main settings."
+            "BattMon is ready. Open Getting Started for a short tour of the main settings."
         )
     ]
     assert app.app_state["first_launch_completed"] is True

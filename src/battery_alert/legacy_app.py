@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # mypy: ignore-errors
 """
-Battery Alert Monitor - macOS GUI Application
-A professional battery monitoring tool for macOS users
+BattMon - macOS GUI Application
+Lightweight battery alert monitor for macOS
 """
 
 import os
@@ -58,9 +58,9 @@ except ImportError:
 
 
 APP_VERSION = "1.1.0"
-LATEST_STABLE_RELEASE_API = "https://api.github.com/repos/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/releases/latest"
-RELEASES_API = "https://api.github.com/repos/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/releases"
-RELEASES_PAGE_URL = "https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/releases"
+LATEST_STABLE_RELEASE_API = "https://api.github.com/repos/Lakshmanshenoy/battmon-macos/releases/latest"
+RELEASES_API = "https://api.github.com/repos/Lakshmanshenoy/battmon-macos/releases"
+RELEASES_PAGE_URL = "https://github.com/Lakshmanshenoy/battmon-macos/releases"
 UPDATE_CHANNEL = "stable"
 CONFIG_SCHEMA_VERSION = 2
 APP_STATE_SCHEMA_VERSION = 4
@@ -576,7 +576,7 @@ class BatteryAlertApp(rumps.App):
     def onboarding_summary(self):
         """Return a short onboarding summary for new users."""
         return (
-            "Welcome to Battery Alert Monitor.\n\n"
+            "Welcome to BattMon.\n\n"
             "Quick start:\n"
             "1. Set Battery Threshold and Alert Cooldown from the menu.\n"
             "2. Use Check for Updates or Run Release Check from the maintenance menu.\n"
@@ -601,7 +601,7 @@ class BatteryAlertApp(rumps.App):
         self.save_app_state()
         self.show_non_blocking_feedback(
             "Welcome",
-            "Battery Alert is ready. Open Getting Started for a short tour of the main settings."
+            "BattMon is ready. Open Getting Started for a short tour of the main settings."
         )
 
     def _is_process_running(self, pid):
@@ -632,7 +632,7 @@ class BatteryAlertApp(rumps.App):
                 return
 
             if self._is_process_running(existing_pid):
-                raise RuntimeError("Battery Alert is already running.")
+                raise RuntimeError("BattMon is already running.")
 
             # Stale pid file
             self.pid_file.unlink(missing_ok=True)
@@ -768,7 +768,7 @@ class BatteryAlertApp(rumps.App):
         if self.settings["enable_notifications"]:
             try:
                 # Use proper AppleScript syntax without line breaks
-                apple_script = f'display notification "Battery at {battery_level}%! Please charge your device." with title "Low Battery Alert"'
+                apple_script = f'display notification "Battery at {battery_level}%! Please charge your device." with title "BattMon Alert"'
                 result = subprocess.run(['osascript', '-e', apple_script], capture_output=True, text=True)
                 if result.returncode != 0:
                     self.log_runtime(f"Notification failed: {result.stderr}", level="error")
@@ -978,7 +978,7 @@ class BatteryAlertApp(rumps.App):
         last_alert = self.alert_history[-1]["time"] if self.alert_history else "never"
 
         return (
-            "Battery Alert Diagnostics\n"
+            "BattMon Diagnostics\n"
             f"timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"python: {sys.version.split()[0]}\n"
             f"platform: {platform.platform()}\n"
@@ -1273,7 +1273,7 @@ class BatteryAlertApp(rumps.App):
         api_url = LATEST_STABLE_RELEASE_API if update_channel == "stable" else RELEASES_API
         request = urllib.request.Request(
             api_url,
-            headers={"Accept": "application/vnd.github+json", "User-Agent": "battery-alert-monitor"}
+            headers={"Accept": "application/vnd.github+json", "User-Agent": "battmon-macos"}
         )
         with urllib.request.urlopen(request, timeout=6) as response:
             payload = json.loads(response.read().decode("utf-8"))
@@ -1466,7 +1466,7 @@ class BatteryAlertApp(rumps.App):
     <array>
         <string>/usr/bin/open</string>
         <string>-a</string>
-        <string>Battery Alert</string>
+        <string>BattMon</string>
         <string>--background</string>
     </array>
     <key>RunAtLoad</key>
@@ -1489,7 +1489,7 @@ class BatteryAlertApp(rumps.App):
                 subprocess.run(['launchctl', 'load', str(plist_file)], 
                              capture_output=True)
                 self.log_runtime(f"Enabled - LaunchAgent plist: {plist_file}")
-                self.log_runtime("To see it with app name in login items, add Battery Alert.app to System Settings > General > Login Items")
+                self.log_runtime("To see it with app name in login items, add BattMon.app to System Settings > General > Login Items")
             else:
                 # Remove autolaunch
                 if plist_file.exists():
@@ -1627,14 +1627,14 @@ class BatteryAlertApp(rumps.App):
     def show_about(self, _):
         """Show about dialog"""
         try:
-            about_text = f"""Battery Alert Monitor v{APP_VERSION}
+            about_text = f"""BattMon v{APP_VERSION}
 
-A professional battery monitoring tool for macOS.
+Lightweight battery alert monitor for macOS.
 
 Keep your device powered and healthy! 🔋
 
 © 2024"""
-            rumps.alert("About Battery Alert", about_text)
+            rumps.alert("About BattMon", about_text)
         except Exception as e:
             self.log_runtime(f"Error in show_about: {e}", level="error")
     

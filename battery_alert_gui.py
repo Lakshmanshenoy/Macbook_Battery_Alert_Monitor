@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Compatibility entrypoint for Battery Alert Monitor.
+Compatibility entrypoint for BattMon.
 Keeps legacy imports working while delegating runtime behavior to src.battery_alert.
 """
 

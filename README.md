@@ -1,10 +1,12 @@
-# 🔋 Battery Alert Monitor for Macbook
+# 🔋 BattMon
 
-[![Semantic Release](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/actions/workflows/semantic-release.yml/badge.svg?branch=main)](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/actions/workflows/semantic-release.yml)
-[![Semantic Release Dry Run](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/actions/workflows/semantic-release-dry-run.yml/badge.svg?branch=main)](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/actions/workflows/semantic-release-dry-run.yml)
-[![Commit Message Lint](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/actions/workflows/commitlint.yml/badge.svg?branch=main)](https://github.com/Lakshmanshenoy/Macbook_Battery_Alert_Monitor/actions/workflows/commitlint.yml)
+Lightweight battery alert monitor for macOS.
 
-A professional, user-friendly battery monitoring application for macOS. Get alerts when your battery is running low, with real-time status updates and comprehensive settings.
+[![Semantic Release](https://github.com/Lakshmanshenoy/battmon-macos/actions/workflows/semantic-release.yml/badge.svg?branch=main)](https://github.com/Lakshmanshenoy/battmon-macos/actions/workflows/semantic-release.yml)
+[![Semantic Release Dry Run](https://github.com/Lakshmanshenoy/battmon-macos/actions/workflows/semantic-release-dry-run.yml/badge.svg?branch=main)](https://github.com/Lakshmanshenoy/battmon-macos/actions/workflows/semantic-release-dry-run.yml)
+[![Commit Message Lint](https://github.com/Lakshmanshenoy/battmon-macos/actions/workflows/commitlint.yml/badge.svg?branch=main)](https://github.com/Lakshmanshenoy/battmon-macos/actions/workflows/commitlint.yml)
+
+Lightweight battery alert monitor for macOS. Get alerts when your battery is running low, with real-time status updates and configurable settings.
 
 ## Features
 
@@ -46,9 +48,9 @@ A professional, user-friendly battery monitoring application for macOS. Get aler
 
 ### For Users (Easiest Way)
 
-1. Download `Battery Alert.dmg`
+1. Download `BattMon.dmg`
 2. Open the DMG file
-3. Drag **Battery Alert.app** to your **Applications** folder
+3. Drag **BattMon.app** to your **Applications** folder
 4. Done! Launch from Applications folder
 
 ### For Developers
@@ -81,13 +83,13 @@ A professional, user-friendly battery monitoring application for macOS. Get aler
    bash create_dmg.sh
    ```
 
-The built app will be in `dist/Battery Alert.app`
+The built app will be in `dist/BattMon.app`
 
 ## Usage
 
 ### Getting Started
 
-1. Launch **Battery Alert** from Applications
+1. Launch **BattMon** from Applications
 2. The app will appear in your menu bar (🔋 icon)
 3. Click the icon to access the menu
 
@@ -208,8 +210,8 @@ Add these secrets to enable **notarization**:
 - Check System Preferences > Security & Privacy > General
 
 **Notifications not appearing?**
-- Check macOS notifications settings for Battery Alert
-- System Preferences > Notifications > Battery Alert
+- Check macOS notifications settings for BattMon
+- System Preferences > Notifications > BattMon
 
 **Sound alerts not playing?**
 - Check volume settings
@@ -221,7 +223,7 @@ Add these secrets to enable **notarization**:
 
 ## Uninstallation
 
-1. Drag **Battery Alert** from Applications to Trash
+1. Drag **BattMon** from Applications to Trash
 2. Empty Trash
 3. (Optional) Delete `~/.battery_alert/` folder to remove saved settings
 
@@ -230,7 +232,7 @@ Add these secrets to enable **notarization**:
 ### Project Structure
 
 ```
-Macbook_Battery_Alert_Monitor/
+battmon-macos/
 ├── battery_alert_gui.py          # Entry point shim
 ├── src/
 │   └── battery_alert/
