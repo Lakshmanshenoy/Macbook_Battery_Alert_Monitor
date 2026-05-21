@@ -11,7 +11,7 @@ import zipfile
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from .constants import (
     APP_STATE_SCHEMA_VERSION,
@@ -31,11 +31,11 @@ class DiagnosticsManager:
     def __init__(self, app: "LegacyBatteryAlertApp") -> None:
         self.app = app
 
-    def _subprocess_module(self):
+    def _subprocess_module(self) -> Any:
         gui_module = sys.modules.get("battery_alert_gui")
         return getattr(gui_module, "subprocess", subprocess)
 
-    def _rumps_module(self):
+    def _rumps_module(self) -> Any:
         gui_module = sys.modules.get("battery_alert_gui")
         rumps = getattr(gui_module, "rumps", None)
         if rumps is not None:
@@ -107,7 +107,7 @@ class DiagnosticsManager:
             self.app._previous_threading_excepthook = threading.excepthook
             threading.excepthook = self.handle_thread_exception
 
-    def handle_uncaught_exception(self, exc_type, exc_value, exc_traceback) -> None:
+    def handle_uncaught_exception(self, exc_type: type, exc_value: Exception, exc_traceback: Any) -> None:
         """Persist uncaught exceptions raised on the main thread."""
         if issubclass(exc_type, KeyboardInterrupt):
             if self.app._previous_excepthook:
@@ -117,7 +117,7 @@ class DiagnosticsManager:
         self.write_crash_report(exc_type, exc_value, exc_traceback, thread_name="main")
         self.log_runtime(f"Captured uncaught exception: {exc_type.__name__}: {exc_value}", level="warning")
 
-    def handle_thread_exception(self, args) -> None:
+    def handle_thread_exception(self, args: Any) -> None:
         """Persist uncaught exceptions raised on background threads."""
         thread_name = getattr(getattr(args, "thread", None), "name", "background")
         self.write_crash_report(args.exc_type, args.exc_value, args.exc_traceback, thread_name=thread_name)
@@ -133,7 +133,7 @@ class DiagnosticsManager:
         self,
         exc_type: type,
         exc_value: Exception,
-        exc_traceback,
+        exc_traceback: Any,
         thread_name: str = "main",
     ) -> Optional[Path]:
         report_timestamp = datetime.now()
@@ -263,7 +263,7 @@ class DiagnosticsManager:
             f"Missing tools: {', '.join(self.app.runtime_health.get('missing_tools', [])) or 'none'}"
         )
 
-    def check_status(self, _) -> None:
+    def check_status(self, _: Any) -> None:
         """Check and display current battery status."""
         try:
             battery_info = self.app.get_battery_info()
@@ -271,7 +271,7 @@ class DiagnosticsManager:
         except Exception as exc:
             self.app.log_runtime(f"Error in check_status: {exc}", level="error")
 
-    def test_alert(self, _) -> None:
+    def test_alert(self, _: Any) -> None:
         """Trigger a manual test alert using the current battery level."""
         try:
             battery_level = self.app.get_battery_info()["level"]
@@ -284,7 +284,7 @@ class DiagnosticsManager:
             self.app.log_runtime(f"Error in test_alert: {exc}", level="error")
             self._rumps_module().alert(f"Error: {exc}", title="Error")
 
-    def view_alert_history(self, _) -> None:
+    def view_alert_history(self, _: Any) -> None:
         """View alert history."""
         try:
             if self.app.alert_history:
@@ -298,7 +298,7 @@ class DiagnosticsManager:
         except Exception as exc:
             self.app.log_runtime(f"Error in view_alert_history: {exc}", level="error")
 
-    def copy_diagnostics(self, _) -> None:
+    def copy_diagnostics(self, _: Any) -> None:
         """Copy diagnostics information to the clipboard."""
         try:
             diagnostics = self.app.build_diagnostics_report()
@@ -472,7 +472,7 @@ class DiagnosticsManager:
         self.cleanup_old_support_artifacts()
         return bundle_path
 
-    def export_support_bundle(self, _) -> None:
+    def export_support_bundle(self, _: Any) -> None:
         """Generate a support zip bundle for troubleshooting."""
         try:
             bundle_path = self.create_support_bundle_archive(preset="full")
@@ -499,7 +499,7 @@ class DiagnosticsManager:
             self.app.log_runtime(f"Failed to export support bundle: {exc}", level="warning")
             self.app.show_feedback("Error", f"Failed to export support bundle: {exc}")
 
-    def export_diagnostics_bundle(self, _) -> None:
+    def export_diagnostics_bundle(self, _: Any) -> None:
         """Generate a diagnostics-only support bundle for lightweight triage."""
         try:
             bundle_path = self.create_support_bundle_archive(preset="diagnostics")
@@ -520,7 +520,7 @@ class DiagnosticsManager:
             self.app.log_runtime(f"Failed to export diagnostics-only bundle: {exc}", level="warning")
             self.app.show_feedback("Error", f"Failed to export diagnostics-only bundle: {exc}")
 
-    def open_config_folder(self, _) -> None:
+    def open_config_folder(self, _: Any) -> None:
         """Open the configuration directory in Finder."""
         try:
             self._subprocess_module().run(["open", str(self.app.config_dir)], check=True)
@@ -528,7 +528,7 @@ class DiagnosticsManager:
             self.app.log_runtime(f"Error in open_config_folder: {exc}", level="error")
             self._rumps_module().alert(f"Error: {exc}", title="Error")
 
-    def show_about(self, _) -> None:
+    def show_about(self, _: Any) -> None:
         """Show about dialog."""
         try:
             about_text = f"""Battery Alert Monitor v{APP_VERSION}
@@ -542,7 +542,7 @@ Keep your device powered and healthy! 🔋
         except Exception as exc:
             self.app.log_runtime(f"Error in show_about: {exc}", level="error")
 
-    def quit_app(self, _) -> None:
+    def quit_app(self, _: Any) -> None:
         """Quit the application gracefully."""
         try:
             self.app.log_runtime("Application shutdown requested")

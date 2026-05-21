@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 from datetime import datetime
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from .constants import UPDATE_CHANNEL
 from .legacy_app import BatteryAlertApp as LegacyBatteryAlertApp
@@ -15,7 +15,7 @@ class AlertManager:
     def __init__(self, app: "LegacyBatteryAlertApp") -> None:
         self.app = app
 
-    def _rumps_module(self):
+    def _rumps_module(self) -> Any:
         gui_module = sys.modules.get("battery_alert_gui")
         rumps = getattr(gui_module, "rumps", None)
         if rumps is None:
@@ -100,14 +100,21 @@ class AlertManager:
             except Exception as exc:
                 self.app.log_runtime(f"Voice alert failed: {exc}", level="error")
 
-    def update_boolean_setting(self, key, sender, label, enabled_text: str = "ON", disabled_text: str = "OFF") -> None:
+    def update_boolean_setting(
+        self,
+        key: str,
+        sender: Any,
+        label: str,
+        enabled_text: str = "ON",
+        disabled_text: str = "OFF",
+    ) -> None:
         self.app.settings[key] = not self.app.settings[key]
         self.app.save_config()
         sender.title = f"{label}: {enabled_text if self.app.settings[key] else disabled_text}"
 
     def prompt_for_integer_setting(
         self,
-        key,
+        key: str,
         title: str,
         prompt: str,
         minimum: int,
@@ -171,7 +178,7 @@ class AlertManager:
             f"Update channel: {update_channel}"
         )
 
-    def show_preferences(self, _) -> None:
+    def show_preferences(self, _: Any) -> None:
         """Show a summary of current user preferences."""
         try:
             self._rumps_module().alert("Preferences", self.format_settings_summary())
@@ -185,7 +192,7 @@ class AlertManager:
         except Exception as exc:
             self.app.log_runtime(f"Failed to update menu: {exc}", level="error")
 
-    def set_threshold(self, _) -> None:
+    def set_threshold(self, _: Any) -> None:
         """Set battery threshold using a dialog."""
         try:
             self.prompt_for_integer_setting(
@@ -200,7 +207,7 @@ class AlertManager:
             self.app.log_runtime(f"Error in set_threshold: {exc}", level="error")
             self._rumps_module().alert(f"Error: {exc}", title="Error")
 
-    def set_interval(self, _) -> None:
+    def set_interval(self, _: Any) -> None:
         """Set check interval using a dialog."""
         try:
             self.prompt_for_integer_setting(
@@ -215,7 +222,7 @@ class AlertManager:
             self.app.log_runtime(f"Error in set_interval: {exc}", level="error")
             self._rumps_module().alert(f"Error: {exc}", title="Error")
 
-    def set_cooldown(self, _) -> None:
+    def set_cooldown(self, _: Any) -> None:
         """Set alert cooldown using a dialog."""
         try:
             self.prompt_for_integer_setting(
@@ -230,28 +237,28 @@ class AlertManager:
             self.app.log_runtime(f"Error in set_cooldown: {exc}", level="error")
             self._rumps_module().alert(f"Error: {exc}", title="Error")
 
-    def toggle_sound(self, sender) -> None:
+    def toggle_sound(self, sender: Any) -> None:
         try:
             self.update_boolean_setting("enable_sound", sender, "🔊 Sound Alerts")
             self.app.log_runtime(f"Sound alerts: {'ON' if self.app.settings['enable_sound'] else 'OFF'}")
         except Exception as exc:
             self.app.log_runtime(f"Error toggling sound: {exc}", level="error")
 
-    def toggle_voice(self, sender) -> None:
+    def toggle_voice(self, sender: Any) -> None:
         try:
             self.update_boolean_setting("enable_voice", sender, "🎤 Voice Alerts")
             self.app.log_runtime(f"Voice alerts: {'ON' if self.app.settings['enable_voice'] else 'OFF'}")
         except Exception as exc:
             self.app.log_runtime(f"Error toggling voice: {exc}", level="error")
 
-    def toggle_notifications(self, sender) -> None:
+    def toggle_notifications(self, sender: Any) -> None:
         try:
             self.update_boolean_setting("enable_notifications", sender, "🔔 Notifications")
             self.app.log_runtime(f"Notifications: {'ON' if self.app.settings['enable_notifications'] else 'OFF'}")
         except Exception as exc:
             self.app.log_runtime(f"Error toggling notifications: {exc}", level="error")
 
-    def toggle_autolaunch(self, sender) -> None:
+    def toggle_autolaunch(self, sender: Any) -> None:
         try:
             self.update_boolean_setting("auto_launch", sender, "🚀 Launch at Startup")
             self.app.setup_autolaunch()
@@ -262,7 +269,7 @@ class AlertManager:
             self.app.log_runtime(f"Error toggling auto-launch: {exc}", level="error")
             self._rumps_module().alert(f"Error: {exc}", title="Error")
 
-    def toggle_update_checks(self, sender) -> None:
+    def toggle_update_checks(self, sender: Any) -> None:
         try:
             self.update_boolean_setting("enable_update_checks", sender, "🆕 Update Checks")
             status = "enabled" if self.app.settings["enable_update_checks"] else "disabled"
@@ -271,7 +278,7 @@ class AlertManager:
             self.app.log_runtime(f"Error toggling update checks: {exc}", level="error")
             self._rumps_module().alert(f"Error: {exc}", title="Error")
 
-    def toggle_update_channel(self, sender) -> None:
+    def toggle_update_channel(self, sender: Any) -> None:
         current = self.app.settings.get("update_channel", UPDATE_CHANNEL)
         self.app.settings["update_channel"] = "beta" if current == "stable" else "stable"
         self.app.save_config()

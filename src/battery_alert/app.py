@@ -1,7 +1,8 @@
 # mypy: ignore-errors
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .alerts import AlertManager
 from .battery import BatteryService
@@ -31,6 +32,49 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         if not hasattr(self, "battery_service"):
             self.battery_service = BatteryService(self.log_runtime)
 
+    def _rumps_module(self) -> Any:
+        gui_module = sys.modules.get("battery_alert_gui")
+        rumps = getattr(gui_module, "rumps", None)
+        if rumps is None:
+            import rumps as imported_rumps
+
+            rumps = imported_rumps
+        return rumps
+
+    def setup_menu(self) -> None:
+        rumps = self._rumps_module()
+        self.menu = [
+            rumps.MenuItem("Getting Started", self.show_getting_started),
+            rumps.MenuItem("Show Preferences", self.show_preferences),
+            rumps.MenuItem("Battery Threshold", self.set_threshold),
+            rumps.MenuItem("Check Interval", self.set_interval),
+            rumps.MenuItem("Alert Cooldown", self.set_cooldown),
+            None,
+            rumps.MenuItem("🔊 Sound Alerts: " + ("ON" if self.settings["enable_sound"] else "OFF"), self.toggle_sound),
+            rumps.MenuItem("🎤 Voice Alerts: " + ("ON" if self.settings["enable_voice"] else "OFF"), self.toggle_voice),
+            rumps.MenuItem("🔔 Notifications: " + ("ON" if self.settings["enable_notifications"] else "OFF"), self.toggle_notifications),
+            rumps.MenuItem("🆕 Update Checks: " + ("ON" if self.settings["enable_update_checks"] else "OFF"), self.toggle_update_checks),
+            rumps.MenuItem("🧭 Update Channel: " + self.settings.get("update_channel", "stable").upper(), self.toggle_update_channel),
+            None,
+            rumps.MenuItem("🚀 Launch at Startup: " + ("ON" if self.settings["auto_launch"] else "OFF"), self.toggle_autolaunch),
+            None,
+            rumps.MenuItem("View System Status", self.check_status),
+            rumps.MenuItem("Version & Updates", self.show_version_and_updates),
+            rumps.MenuItem("Run Update Check", self.check_for_updates_now),
+            rumps.MenuItem("Download Latest Release", self.download_latest_release),
+            rumps.MenuItem("Run Release Validation", self.run_release_validation_now),
+            rumps.MenuItem("Open Releases Page", self.open_releases_page),
+            rumps.MenuItem("Run Test Alert", self.test_alert),
+            rumps.MenuItem("View Alert History", self.view_alert_history),
+            rumps.MenuItem("Copy Support Diagnostics", self.copy_diagnostics),
+            rumps.MenuItem("Export Support Bundle", self.export_support_bundle),
+            rumps.MenuItem("Export Diagnostics-Only Bundle", self.export_diagnostics_bundle),
+            rumps.MenuItem("Open Support Folder", self.open_config_folder),
+            None,
+            rumps.MenuItem("About", self.show_about),
+            rumps.MenuItem("Quit", self.quit_app),
+        ]
+
     def get_battery_info(self) -> Dict[str, Union[int, bool]]:
         self._ensure_managers()
         return self.battery_service.get_battery_info()
@@ -47,13 +91,13 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         self.alert_manager.trigger_alert(battery_level, now)
 
-    def update_boolean_setting(self, key, sender, label, enabled_text: str = "ON", disabled_text: str = "OFF") -> None:
+    def update_boolean_setting(self, key: str, sender: Any, label: str, enabled_text: str = "ON", disabled_text: str = "OFF") -> None:
         self._ensure_managers()
         self.alert_manager.update_boolean_setting(key, sender, label, enabled_text, disabled_text)
 
     def prompt_for_integer_setting(
         self,
-        key,
+        key: str,
         title: str,
         prompt: str,
         minimum: int,
@@ -70,7 +114,7 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
             success_message,
         )
 
-    def toggle_update_channel(self, sender) -> None:
+    def toggle_update_channel(self, sender: Any) -> None:
         self._ensure_managers()
         self.alert_manager.toggle_update_channel(sender)
 
@@ -78,7 +122,7 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         return self.alert_manager.format_settings_summary()
 
-    def show_preferences(self, _) -> None:
+    def show_preferences(self, _: Any) -> None:
         self._ensure_managers()
         self.alert_manager.show_preferences(_)
 
@@ -86,35 +130,39 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         self.alert_manager.update_menu_labels()
 
-    def set_threshold(self, _) -> None:
+    def set_threshold(self, _: Any) -> None:
         self._ensure_managers()
         self.alert_manager.set_threshold(_)
 
-    def set_interval(self, _) -> None:
+    def set_interval(self, _: Any) -> None:
         self._ensure_managers()
         self.alert_manager.set_interval(_)
 
-    def set_cooldown(self, _) -> None:
+    def set_cooldown(self, _: Any) -> None:
         self._ensure_managers()
         self.alert_manager.set_cooldown(_)
 
-    def toggle_sound(self, sender) -> None:
+    def toggle_sound(self, sender: Any) -> None:
         self._ensure_managers()
         self.alert_manager.toggle_sound(sender)
 
-    def toggle_voice(self, sender) -> None:
+    def toggle_voice(self, sender: Any) -> None:
         self._ensure_managers()
         self.alert_manager.toggle_voice(sender)
 
-    def toggle_notifications(self, sender) -> None:
+    def toggle_notifications(self, sender: Any) -> None:
         self._ensure_managers()
         self.alert_manager.toggle_notifications(sender)
 
-    def toggle_autolaunch(self, sender) -> None:
+    def toggle_autolaunch(self, sender: Any) -> None:
         self._ensure_managers()
         self.alert_manager.toggle_autolaunch(sender)
 
-    def toggle_update_checks(self, sender) -> None:
+    def setup_autolaunch(self) -> None:
+        self._ensure_managers()
+        self.config_manager.setup_autolaunch()
+
+    def toggle_update_checks(self, sender: Any) -> None:
         self._ensure_managers()
         self.alert_manager.toggle_update_checks(sender)
 
@@ -181,17 +229,17 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
     def recover_corrupted_json_file(
         self,
         path: Path,
-        fallback_payload: Dict[str, Any],
+        fallback_payload: Any,
         context_label: str,
     ) -> None:
         self._ensure_managers()
         self.config_manager.recover_corrupted_json_file(path, fallback_payload, context_label)
 
-    def _write_json_atomic(self, destination: Path, payload: Dict[str, Any]) -> None:
+    def _write_json_atomic(self, destination: Path, payload: Any) -> None:
         self._ensure_managers()
         self.config_manager.write_json_atomic(destination, payload)
 
-    def record_app_state_event(self, key, value=None) -> None:
+    def record_app_state_event(self, key: str, value: Any = None) -> None:
         self._ensure_managers()
         self.config_manager.record_app_state_event(key, value)
 
@@ -199,7 +247,7 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         return self.config_manager.onboarding_summary()
 
-    def show_getting_started(self, _=None) -> None:
+    def show_getting_started(self, _: Any = None) -> None:
         self._ensure_managers()
         self.config_manager.show_getting_started(_)
 
@@ -207,7 +255,7 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         self.config_manager.maybe_show_first_run_onboarding()
 
-    def _is_process_running(self, pid) -> bool:
+    def _is_process_running(self, pid: int) -> bool:
         self._ensure_managers()
         return self.config_manager.is_process_running(pid)
 
@@ -231,11 +279,11 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         self.diagnostics_manager.install_exception_hooks()
 
-    def handle_uncaught_exception(self, exc_type, exc_value, exc_traceback) -> None:
+    def handle_uncaught_exception(self, exc_type: type, exc_value: Exception, exc_traceback: Any) -> None:
         self._ensure_managers()
         self.diagnostics_manager.handle_uncaught_exception(exc_type, exc_value, exc_traceback)
 
-    def handle_thread_exception(self, args) -> None:
+    def handle_thread_exception(self, args: Any) -> None:
         self._ensure_managers()
         self.diagnostics_manager.handle_thread_exception(args)
 
@@ -243,7 +291,7 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self,
         exc_type: type,
         exc_value: Exception,
-        exc_traceback,
+        exc_traceback: Any,
         thread_name: str = "main",
     ) -> Optional[Path]:
         self._ensure_managers()
@@ -301,67 +349,73 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         return self.diagnostics_manager.create_support_bundle_archive(preset)
 
-    def check_status(self, _):
+    def check_status(self, _: Any) -> None:
         self._ensure_managers()
         self.diagnostics_manager.check_status(_)
 
-    def test_alert(self, _):
+    def test_alert(self, _: Any) -> None:
         self._ensure_managers()
         self.diagnostics_manager.test_alert(_)
 
-    def view_alert_history(self, _):
+    def view_alert_history(self, _: Any) -> None:
         self._ensure_managers()
         self.diagnostics_manager.view_alert_history(_)
 
-    def copy_diagnostics(self, _):
+    def copy_diagnostics(self, _: Any) -> None:
         self._ensure_managers()
         self.diagnostics_manager.copy_diagnostics(_)
 
-    def export_support_bundle(self, _):
+    def export_support_bundle(self, _: Any) -> None:
         self._ensure_managers()
         self.diagnostics_manager.export_support_bundle(_)
 
-    def export_diagnostics_bundle(self, _):
+    def export_diagnostics_bundle(self, _: Any) -> None:
         self._ensure_managers()
         self.diagnostics_manager.export_diagnostics_bundle(_)
 
-    def open_config_folder(self, _):
+    def open_config_folder(self, _: Any) -> None:
         self._ensure_managers()
         self.diagnostics_manager.open_config_folder(_)
 
-    def show_about(self, _):
+    def show_about(self, _: Any) -> None:
         self._ensure_managers()
         self.diagnostics_manager.show_about(_)
 
-    def quit_app(self, _):
+    def quit_app(self, _: Any) -> None:
         self._ensure_managers()
         self.diagnostics_manager.quit_app(_)
 
-    def check_for_updates(self, manual: bool = False) -> None:
+    def check_for_updates(self, manual: bool = False) -> Dict[str, str]:
         self._ensure_managers()
         return self.update_checker.check_for_updates(manual)
 
-    def record_update_check_result(self, status, latest_version=None, latest_url=None, checked_at=None) -> None:
+    def record_update_check_result(
+        self,
+        status: str,
+        latest_version: Optional[str] = None,
+        latest_url: Optional[str] = None,
+        checked_at: Optional[datetime] = None,
+    ) -> None:
         self._ensure_managers()
         self.update_checker.record_update_check_result(status, latest_version, latest_url, checked_at)
 
-    def _version_tuple(self, version):
+    def _version_tuple(self, version: str) -> Tuple[int, int, int]:
         self._ensure_managers()
         return self.update_checker._version_tuple(version)
 
-    def is_newer_version(self, latest_version, current_version) -> bool:
+    def is_newer_version(self, latest_version: str, current_version: str) -> bool:
         self._ensure_managers()
         return self.update_checker.is_newer_version(latest_version, current_version)
 
-    def _read_last_update_check(self):
+    def _read_last_update_check(self) -> Optional[datetime]:
         self._ensure_managers()
         return self.update_checker._read_last_update_check()
 
-    def _write_last_update_check(self, timestamp) -> None:
+    def _write_last_update_check(self, timestamp: datetime) -> None:
         self._ensure_managers()
         self.update_checker._write_last_update_check(timestamp)
 
-    def should_check_for_updates(self, now=None, minimum_hours=24) -> bool:
+    def should_check_for_updates(self, now: Optional[datetime] = None, minimum_hours: int = 24) -> bool:
         self._ensure_managers()
         return self.update_checker.should_check_for_updates(now, minimum_hours)
 
@@ -369,19 +423,19 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         self.update_checker._run_manual_update_check()
 
-    def check_for_updates_now(self, _):
+    def check_for_updates_now(self, _: Any) -> None:
         self._ensure_managers()
         self.update_checker.check_for_updates_now(_)
 
-    def show_version_and_updates(self, _=None) -> None:
+    def show_version_and_updates(self, _: Any = None) -> None:
         self._ensure_managers()
         self.update_checker.show_version_and_updates(_)
 
-    def open_releases_page(self, _=None) -> None:
+    def open_releases_page(self, _: Any = None) -> None:
         self._ensure_managers()
         self.update_checker.open_releases_page(_)
 
-    def get_latest_release(self):
+    def get_latest_release(self) -> Dict[str, str]:
         self._ensure_managers()
         return self.update_checker.get_latest_release()
 
@@ -389,7 +443,7 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         self.update_checker.download_latest_release(_)
 
-    def build_release_validation_command(self):
+    def build_release_validation_command(self) -> List[str]:
         self._ensure_managers()
         return self.update_checker.build_release_validation_command()
 
@@ -397,7 +451,7 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         self.update_checker._run_release_validation()
 
-    def run_release_validation_now(self, _):
+    def run_release_validation_now(self, _: Any) -> None:
         self._ensure_managers()
         self.update_checker.run_release_validation_now(_)
 

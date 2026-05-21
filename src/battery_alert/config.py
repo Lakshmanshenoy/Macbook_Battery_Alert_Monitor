@@ -1,6 +1,7 @@
 # mypy: ignore-errors
 import json
 import os
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -21,7 +22,7 @@ class ConfigManager:
     def __init__(self, app: "LegacyBatteryAlertApp") -> None:
         self.app = app
 
-    def _rumps_module(self):
+    def _rumps_module(self) -> Any:
         gui_module = sys.modules.get("battery_alert_gui")
         rumps = getattr(gui_module, "rumps", None)
         if rumps is not None:
@@ -30,6 +31,10 @@ class ConfigManager:
         import rumps as imported_rumps
 
         return imported_rumps
+
+    def _subprocess_module(self) -> Any:
+        gui_module = sys.modules.get("battery_alert_gui")
+        return getattr(gui_module, "subprocess", subprocess)
 
     def default_settings_payload(self) -> Dict[str, Any]:
         return self.app.default_settings_payload()
@@ -200,7 +205,7 @@ class ConfigManager:
         except Exception as exc:
             self.app.log_runtime(f"Failed to save update state: {exc}", level="error")
 
-    def recover_corrupted_json_file(self, path: Path, fallback_payload: Dict[str, Any], context_label: str) -> None:
+    def recover_corrupted_json_file(self, path: Path, fallback_payload: Any, context_label: str) -> None:
         try:
             if path.exists():
                 quarantine_name = f"{path.name}.corrupt.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -214,7 +219,7 @@ class ConfigManager:
         except Exception as exc:
             self.app.log_runtime(f"Failed to recover corrupted {context_label} file: {exc}", level="error")
 
-    def write_json_atomic(self, destination: Path, payload: Dict[str, Any]) -> None:
+    def write_json_atomic(self, destination: Path, payload: Any) -> None:
         tmp_path = destination.with_suffix(destination.suffix + ".tmp")
         with open(tmp_path, "w") as handle:
             json.dump(payload, handle, indent=2)
@@ -222,7 +227,7 @@ class ConfigManager:
             os.fsync(handle.fileno())
         os.replace(tmp_path, destination)
 
-    def record_app_state_event(self, key, value=None) -> None:
+    def record_app_state_event(self, key: str, value: Any = None) -> None:
         """Record lightweight app usage metrics for post-release support."""
         if not hasattr(self.app, "app_state") or not isinstance(self.app.app_state, dict):
             self.app.app_state = self.default_app_state_payload()
@@ -247,7 +252,7 @@ class ConfigManager:
             "You can reopen this message from the menu anytime."
         )
 
-    def show_getting_started(self, _=None) -> None:
+    def show_getting_started(self, _ : Any = None) -> None:
         """Show onboarding guidance on demand."""
         try:
             self._rumps_module().alert("Getting Started", self.onboarding_summary())
@@ -267,7 +272,7 @@ class ConfigManager:
             "Battery Alert is ready. Open Getting Started for a short tour of the main settings.",
         )
 
-    def is_process_running(self, pid) -> bool:
+    def is_process_running(self, pid: int) -> bool:
         """Check if a process with the given PID exists."""
         try:
             os.kill(pid, 0)
@@ -300,3 +305,54 @@ class ConfigManager:
             self.app.pid_file.unlink(missing_ok=True)
         except ValueError:
             self.app.pid_file.unlink(missing_ok=True)
+
+    def setup_autolaunch(self) -> None:
+        """Setup or remove autolaunch using LaunchAgent."""
+        launch_agent_dir = Path.home() / "Library/LaunchAgents"
+        plist_file = launch_agent_dir / "com.batteryalert.app.plist"
+
+        try:
+            launch_agent_dir.mkdir(exist_ok=True)
+
+            if self.app.settings["auto_launch"]:
+                plist_content = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.batteryalert.background</string>
+    <key>Program</key>
+    <string>/usr/bin/open</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/open</string>
+        <string>-a</string>
+        <string>Battery Alert</string>
+        <string>--background</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardInPath</key>
+    <string>/dev/null</string>
+    <key>StandardOutPath</key>
+    <string>/dev/null</string>
+    <key>StandardErrorPath</key>
+    <string>/dev/null</string>
+</dict>
+</plist>"""
+
+                with open(plist_file, "w") as handle:
+                    handle.write(plist_content)
+
+                self._subprocess_module().run(["launchctl", "unload", str(plist_file)], capture_output=True)
+                self._subprocess_module().run(["launchctl", "load", str(plist_file)], capture_output=True)
+                self.app.log_runtime(f"Enabled - LaunchAgent plist: {plist_file}")
+                self.app.log_runtime(
+                    "To see it with app name in login items, add Battery Alert.app to System Settings > General > Login Items"
+                )
+            elif plist_file.exists():
+                self._subprocess_module().run(["launchctl", "unload", str(plist_file)], capture_output=True)
+                plist_file.unlink()
+                self.app.log_runtime("Disabled - LaunchAgent removed")
+        except Exception as exc:
+            self.app.log_runtime(f"Failed to setup autolaunch: {exc}", level="error")

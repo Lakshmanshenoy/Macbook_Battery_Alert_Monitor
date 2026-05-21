@@ -7,6 +7,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 from .constants import (
     APP_VERSION,
@@ -24,15 +25,15 @@ class UpdateChecker:
     def __init__(self, app: "LegacyBatteryAlertApp") -> None:
         self.app = app
 
-    def _subprocess_module(self):
+    def _subprocess_module(self) -> Any:
         gui_module = sys.modules.get("battery_alert_gui")
         return getattr(gui_module, "subprocess", subprocess)
 
-    def _threading_module(self):
+    def _threading_module(self) -> Any:
         gui_module = sys.modules.get("battery_alert_gui")
         return getattr(gui_module, "threading", threading)
 
-    def _rumps_module(self):
+    def _rumps_module(self) -> Any:
         gui_module = sys.modules.get("battery_alert_gui")
         rumps = getattr(gui_module, "rumps", None)
         if rumps is not None:
@@ -42,7 +43,13 @@ class UpdateChecker:
 
         return imported_rumps
 
-    def record_update_check_result(self, status, latest_version=None, latest_url=None, checked_at=None) -> None:
+    def record_update_check_result(
+        self,
+        status: str,
+        latest_version: Optional[str] = None,
+        latest_url: Optional[str] = None,
+        checked_at: Optional[datetime] = None,
+    ) -> None:
         """Persist update-check metadata for visibility and support diagnostics."""
         if not hasattr(self.app, "app_state") or not isinstance(self.app.app_state, dict):
             self.app.app_state = self.app.default_app_state_payload()
@@ -56,7 +63,7 @@ class UpdateChecker:
             self.app.app_state["last_known_release_url"] = latest_url
         self.app.save_app_state()
 
-    def _version_tuple(self, version):
+    def _version_tuple(self, version: str) -> Tuple[int, int, int]:
         """Normalize semantic-ish version strings for comparison."""
         cleaned = version.lower().strip().lstrip("v")
         cleaned = cleaned.split("-")[0]
@@ -70,11 +77,11 @@ class UpdateChecker:
             parts.append(0)
         return tuple(parts[:3])
 
-    def is_newer_version(self, latest_version, current_version) -> bool:
+    def is_newer_version(self, latest_version: str, current_version: str) -> bool:
         """Return True when latest_version is greater than current_version."""
         return self._version_tuple(latest_version) > self._version_tuple(current_version)
 
-    def _read_last_update_check(self):
+    def _read_last_update_check(self) -> Optional[datetime]:
         """Read last update-check timestamp from disk."""
         if not hasattr(self.app, "update_state") or not isinstance(self.app.update_state, dict):
             self.app.update_state = self.app.default_update_state_payload()
@@ -90,7 +97,7 @@ class UpdateChecker:
             self.app.save_update_state()
             return None
 
-    def _write_last_update_check(self, timestamp) -> None:
+    def _write_last_update_check(self, timestamp: datetime) -> None:
         """Persist last update-check timestamp."""
         if not hasattr(self.app, "update_state") or not isinstance(self.app.update_state, dict):
             self.app.update_state = self.app.default_update_state_payload()
@@ -98,7 +105,7 @@ class UpdateChecker:
         self.app.update_state["last_checked"] = timestamp.isoformat()
         self.app.save_update_state()
 
-    def should_check_for_updates(self, now=None, minimum_hours=24) -> bool:
+    def should_check_for_updates(self, now: Optional[datetime] = None, minimum_hours: int = 24) -> bool:
         """Throttle automatic update checks to avoid network chatter."""
         now = now or datetime.now()
         previous = self._read_last_update_check()
@@ -106,7 +113,7 @@ class UpdateChecker:
             return True
         return (now - previous).total_seconds() >= minimum_hours * 3600
 
-    def check_for_updates(self, manual: bool = False) -> None:
+    def check_for_updates(self, manual: bool = False) -> Dict[str, str]:
         if not manual and not self.app.settings.get("enable_update_checks", True):
             return {"status": "disabled", "message": "Automatic update checks are disabled."}
 
@@ -181,7 +188,7 @@ class UpdateChecker:
         finally:
             self.app._update_check_in_progress = False
 
-    def check_for_updates_now(self, _):
+    def check_for_updates_now(self, _: Any) -> None:
         """Manual update check entrypoint for menu action."""
         if self.app._update_check_in_progress:
             self.app.show_maintenance_status("Update check already in progress.")
@@ -191,14 +198,14 @@ class UpdateChecker:
         self.app.show_maintenance_status("Update check started.")
         self._threading_module().Thread(target=self._run_manual_update_check, daemon=True).start()
 
-    def show_version_and_updates(self, _=None) -> None:
+    def show_version_and_updates(self, _: Any = None) -> None:
         """Show the current version and tracked update state."""
         try:
             self._rumps_module().alert("Version & Updates", self.app.build_release_visibility_summary())
         except Exception as exc:
             self.app.log_runtime(f"Error in show_version_and_updates: {exc}", level="error")
 
-    def open_releases_page(self, _=None) -> None:
+    def open_releases_page(self, _: Any = None) -> None:
         """Open the GitHub releases page for self-service downloads and notes."""
         try:
             self._subprocess_module().run(["open", RELEASES_PAGE_URL], check=False)
@@ -207,7 +214,7 @@ class UpdateChecker:
             self.app.log_runtime(f"Error opening releases page: {exc}", level="error")
             self._rumps_module().alert(f"Error: {exc}", title="Error")
 
-    def get_latest_release(self):
+    def get_latest_release(self) -> Dict[str, str]:
         """Fetch latest release details according to selected update channel."""
         update_channel = self.app.settings.get("update_channel", UPDATE_CHANNEL)
         api_url = LATEST_STABLE_RELEASE_API if update_channel == "stable" else RELEASES_API
@@ -238,7 +245,7 @@ class UpdateChecker:
             "url": str(release_payload.get("html_url", "")) or RELEASES_PAGE_URL,
         }
 
-    def download_latest_release(self, _=None) -> None:
+    def download_latest_release(self, _: Any = None) -> None:
         try:
             release_url = self.app.app_state.get("last_known_release_url") or RELEASES_PAGE_URL
             self._subprocess_module().run(["open", release_url], check=False)
@@ -247,7 +254,7 @@ class UpdateChecker:
             self.app.log_runtime(f"Error downloading latest release: {exc}", level="error")
             self._rumps_module().alert(f"Error: {exc}", title="Error")
 
-    def build_release_validation_command(self):
+    def build_release_validation_command(self) -> List[str]:
         """Build the command used to run the release smoke test."""
         smoke_test_script = Path(__file__).resolve().parent / "scripts" / "release_smoke_test.py"
         return [sys.executable, str(smoke_test_script)]
@@ -274,7 +281,7 @@ class UpdateChecker:
         finally:
             self.app._release_validation_in_progress = False
 
-    def run_release_validation_now(self, _):
+    def run_release_validation_now(self, _: Any) -> None:
         """Run the release smoke test in the background."""
         if self.app._release_validation_in_progress:
             self.app.show_maintenance_status("Release check already in progress.")
