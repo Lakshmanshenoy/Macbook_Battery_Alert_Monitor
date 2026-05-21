@@ -74,6 +74,50 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
         self._ensure_managers()
         self.alert_manager.toggle_update_channel(sender)
 
+    def format_settings_summary(self) -> str:
+        self._ensure_managers()
+        return self.alert_manager.format_settings_summary()
+
+    def show_preferences(self, _) -> None:
+        self._ensure_managers()
+        self.alert_manager.show_preferences(_)
+
+    def update_menu_labels(self) -> None:
+        self._ensure_managers()
+        self.alert_manager.update_menu_labels()
+
+    def set_threshold(self, _) -> None:
+        self._ensure_managers()
+        self.alert_manager.set_threshold(_)
+
+    def set_interval(self, _) -> None:
+        self._ensure_managers()
+        self.alert_manager.set_interval(_)
+
+    def set_cooldown(self, _) -> None:
+        self._ensure_managers()
+        self.alert_manager.set_cooldown(_)
+
+    def toggle_sound(self, sender) -> None:
+        self._ensure_managers()
+        self.alert_manager.toggle_sound(sender)
+
+    def toggle_voice(self, sender) -> None:
+        self._ensure_managers()
+        self.alert_manager.toggle_voice(sender)
+
+    def toggle_notifications(self, sender) -> None:
+        self._ensure_managers()
+        self.alert_manager.toggle_notifications(sender)
+
+    def toggle_autolaunch(self, sender) -> None:
+        self._ensure_managers()
+        self.alert_manager.toggle_autolaunch(sender)
+
+    def toggle_update_checks(self, sender) -> None:
+        self._ensure_managers()
+        self.alert_manager.toggle_update_checks(sender)
+
     def load_config(self) -> None:
         self._ensure_managers()
         self.config_manager.load_config()
