@@ -1,3 +1,10 @@
+## [1.2.9](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.8...v1.2.9) (2026-05-22)
+
+
+### Bug Fixes
+
+* **dmg:** improve installer label contrast ([2bdbfdc](https://github.com/Lakshmanshenoy/battmon-macos/commit/2bdbfdc2b59177dac671d7c1db43aaee6f0250b4))
+
 ## [1.2.8](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.7...v1.2.8) (2026-05-22)
 
 
