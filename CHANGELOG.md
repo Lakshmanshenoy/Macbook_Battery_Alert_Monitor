@@ -1,3 +1,10 @@
+## [1.2.8](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.7...v1.2.8) (2026-05-22)
+
+
+### Bug Fixes
+
+* **dmg:** restore styled release builds ([5fd5146](https://github.com/Lakshmanshenoy/battmon-macos/commit/5fd51460d96a1322262b64273f95c94843210b99))
+
 ## [1.2.7](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.6...v1.2.7) (2026-05-22)
 
 
