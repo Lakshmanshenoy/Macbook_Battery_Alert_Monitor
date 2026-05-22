@@ -4,9 +4,12 @@
 from PIL import Image, ImageDraw, ImageFont
 
 
-# Match the Finder window content area used in create_dmg.sh (480x300)
-WIDTH = 480
-HEIGHT = 300
+WIDTH = 520
+HEIGHT = 320
+APP_ICON_X = 136
+APPLICATIONS_ICON_X = 384
+LABEL_BOX_WIDTH = 164
+LABEL_BOX_HEIGHT = 68
 
 
 def _load_font(size: int) -> ImageFont.ImageFont:
@@ -27,7 +30,7 @@ def main() -> None:
     image = Image.new("RGBA", (WIDTH, HEIGHT), (28, 28, 30, 255))
     draw = ImageDraw.Draw(image)
 
-    draw.rectangle([0, HEIGHT - 92, WIDTH, HEIGHT], fill=(242, 244, 248, 235))
+    draw.rectangle([0, HEIGHT - 96, WIDTH, HEIGHT], fill=(242, 244, 248, 235))
 
     for inset in range(42):
         alpha = int(55 * (inset / 42))
@@ -50,9 +53,20 @@ def main() -> None:
         fill=(255, 255, 255, 120),
     )
 
+    label_top = HEIGHT - LABEL_BOX_HEIGHT - 16
     label_boxes = [
-        (42, 214, 196, 282),
-        (284, 214, 438, 282),
+        (
+            APP_ICON_X - (LABEL_BOX_WIDTH // 2),
+            label_top,
+            APP_ICON_X + (LABEL_BOX_WIDTH // 2),
+            label_top + LABEL_BOX_HEIGHT,
+        ),
+        (
+            APPLICATIONS_ICON_X - (LABEL_BOX_WIDTH // 2),
+            label_top,
+            APPLICATIONS_ICON_X + (LABEL_BOX_WIDTH // 2),
+            label_top + LABEL_BOX_HEIGHT,
+        ),
     ]
     for box in label_boxes:
         draw.rounded_rectangle(box, radius=18, fill=(255, 255, 255, 248), outline=(210, 215, 223, 255))

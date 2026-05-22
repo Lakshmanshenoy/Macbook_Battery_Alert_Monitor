@@ -90,13 +90,13 @@ tell application "Finder"
         set current view of container window to icon view
         set toolbar visible of container window to false
         set statusbar visible of container window to false
-        set bounds of container window to {220, 140, 700, 440}
+        set bounds of container window to {220, 140, 760, 500}
         delay 1
 
         set opts to icon view options of container window
         set arrangement of opts to not arranged
         set icon size of opts to 128
-        set text size of opts to 16
+        set text size of opts to 15
         set background picture of opts to POSIX file "$BACKGROUND_FILE"
 
         if exists alias file "Applications" then
@@ -106,8 +106,8 @@ tell application "Finder"
         make new alias file at dmgFolder to POSIX file "/Applications"
         delay 1
 
-        set position of application file "${APP_NAME}.app" of container window to {120, 150}
-        set position of alias file "Applications" of container window to {360, 150}
+        set position of application file "${APP_NAME}.app" of container window to {136, 152}
+        set position of alias file "Applications" of container window to {384, 152}
 
         close
         open
