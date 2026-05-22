@@ -6,6 +6,20 @@ from pathlib import Path
 SCRIPT_PATH = Path(__file__).resolve().parent.parent / "scripts" / "release_smoke_test.py"
 
 
+def _next_patch_version(version: str) -> str:
+    cleaned = version.lower().strip().lstrip("v").split("-")[0]
+    parts = []
+    for token in cleaned.split("."):
+        try:
+            parts.append(int(token))
+        except ValueError:
+            parts.append(0)
+    while len(parts) < 3:
+        parts.append(0)
+    parts[2] += 1
+    return f"{parts[0]}.{parts[1]}.{parts[2]}"
+
+
 def _load_smoke_module():
     spec = importlib.util.spec_from_file_location("release_smoke_test", SCRIPT_PATH)
     module = importlib.util.module_from_spec(spec)
@@ -38,7 +52,12 @@ def test_smoke_script_main_passes(monkeypatch, tmp_path):
     app.runtime_log_file.parent.mkdir(parents=True, exist_ok=True)
     app.runtime_log_file.write_text("runtime log line")
 
+    next_version = _next_patch_version(app_module.APP_VERSION)
     monkeypatch.setattr(module, "new_app", lambda: (app_module, app))
-    monkeypatch.setattr(app, "get_latest_release", lambda: {"version": "1.2.0", "url": "https://example.com/release/1.2.0"})
+    monkeypatch.setattr(
+        app,
+        "get_latest_release",
+        lambda: {"version": next_version, "url": f"https://example.com/release/{next_version}"},
+    )
 
     assert module.main() == 0

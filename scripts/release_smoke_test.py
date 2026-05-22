@@ -23,6 +23,20 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 
+def next_patch_version(version: str) -> str:
+    cleaned = version.lower().strip().lstrip("v").split("-")[0]
+    parts = []
+    for token in cleaned.split("."):
+        try:
+            parts.append(int(token))
+        except ValueError:
+            parts.append(0)
+    while len(parts) < 3:
+        parts.append(0)
+    parts[2] += 1
+    return f"{parts[0]}.{parts[1]}.{parts[2]}"
+
+
 def install_rumps_stub() -> None:
     """Install a minimal rumps stub so the app can be imported off-macOS or headless."""
     if "rumps" in sys.modules:
@@ -144,7 +158,11 @@ def main() -> int:
         print(f"Smoke test failed: support bundle missing files: {sorted(required - names)}")
         return 1
 
-    app.get_latest_release = lambda: {"version": "1.2.0", "url": "https://example.com/release/1.2.0"}
+    next_version = next_patch_version(module.APP_VERSION)
+    app.get_latest_release = lambda: {
+        "version": next_version,
+        "url": f"https://example.com/release/{next_version}",
+    }
     result = app.check_for_updates(manual=True)
     if result["status"] != "update_available":
         print("Smoke test failed: update check did not return update_available.")

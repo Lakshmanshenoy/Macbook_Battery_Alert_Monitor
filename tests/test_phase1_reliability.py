@@ -47,6 +47,20 @@ battery_alert_module = importlib.reload(battery_alert_module)
 BatteryAlertApp = battery_alert_module.BatteryAlertApp
 
 
+def _next_patch_version(version: str) -> str:
+    cleaned = version.lower().strip().lstrip("v").split("-")[0]
+    parts = []
+    for token in cleaned.split("."):
+        try:
+            parts.append(int(token))
+        except ValueError:
+            parts.append(0)
+    while len(parts) < 3:
+        parts.append(0)
+    parts[2] += 1
+    return f"{parts[0]}.{parts[1]}.{parts[2]}"
+
+
 def _new_app_for_unit_tests(tmp_path):
     app = BatteryAlertApp.__new__(BatteryAlertApp)
     app.config_dir = Path(tmp_path)
@@ -629,7 +643,8 @@ def test_check_for_updates_uses_beta_channel_release_selection(tmp_path, monkeyp
     app = _new_app_for_unit_tests(tmp_path)
     app.settings["update_channel"] = "beta"
 
-    monkeypatch.setattr(app, "get_latest_release", lambda: {"version": "1.2.0-beta", "url": "https://example.com/beta"})
+    next_beta = f"{_next_patch_version(battery_alert_module.APP_VERSION)}-beta"
+    monkeypatch.setattr(app, "get_latest_release", lambda: {"version": next_beta, "url": "https://example.com/beta"})
     result = app.check_for_updates(manual=True)
 
     assert result["status"] == "update_available"
