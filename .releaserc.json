@@ -5,7 +5,8 @@
     ["@semantic-release/release-notes-generator", { "preset": "conventionalcommits" }],
     ["@semantic-release/changelog", { "changelogFile": "CHANGELOG.md" }],
     ["@semantic-release/exec", {
-      "prepareCmd": "python3 scripts/semantic_prepare.py ${nextRelease.version}"
+      "prepareCmd": "python3 scripts/semantic_prepare.py ${nextRelease.version}",
+      "successCmd": "python3 scripts/dispatch_release_build.py --tag ${nextRelease.gitTag}"
     }],
     ["@semantic-release/git", {
       "assets": ["pyproject.toml", "src/battery_alert/constants.py", "CHANGELOG.md"],
