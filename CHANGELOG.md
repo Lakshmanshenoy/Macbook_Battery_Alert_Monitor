@@ -1,3 +1,10 @@
+## [1.2.4](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.3...v1.2.4) (2026-05-22)
+
+
+### Bug Fixes
+
+* **ci:** make update smoke tests version-agnostic ([7924bd9](https://github.com/Lakshmanshenoy/battmon-macos/commit/7924bd9cfbf68b403002432fe2294795b20ebafd))
+
 ## [1.2.1](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.0...v1.2.1) (2026-05-21)
 
 
