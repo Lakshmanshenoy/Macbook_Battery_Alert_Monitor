@@ -96,6 +96,7 @@ tell application "Finder"
         set opts to icon view options of container window
         set arrangement of opts to not arranged
         set icon size of opts to 128
+        set text size of opts to 16
         set background picture of opts to POSIX file "$BACKGROUND_FILE"
 
         if exists alias file "Applications" then
