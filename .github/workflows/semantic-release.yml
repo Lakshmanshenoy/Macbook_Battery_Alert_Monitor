@@ -8,8 +8,6 @@ on:
 permissions:
   actions: write
   contents: write
-  issues: write
-  pull-requests: write
 
 jobs:
   semantic-release:
@@ -35,7 +33,6 @@ jobs:
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HUSKY: 0
         run: |
           npx semantic-release
