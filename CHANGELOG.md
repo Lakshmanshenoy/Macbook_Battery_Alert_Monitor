@@ -1,3 +1,10 @@
+## [1.2.12](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.11...v1.2.12) (2026-05-22)
+
+
+### Bug Fixes
+
+* **release:** publish after packaging ([c3e1e03](https://github.com/Lakshmanshenoy/battmon-macos/commit/c3e1e0334da33d7a425350c0e9bd9b636fa43daf))
+
 ## [1.2.11](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.10...v1.2.11) (2026-05-22)
 
 
