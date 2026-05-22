@@ -11,6 +11,7 @@ DMG_FINAL_ROOT="${APP_NAME}.dmg"
 BACKGROUND_SRC="assets/dmg_background@2x.png"
 VOLUME_ICON="BatteryAlert.icns"
 MOUNT_DIR="/tmp/battery_alert_dmg_mount"
+HEADLESS_DMG="${BATTMON_HEADLESS_DMG:-false}"
 
 [[ -d "$APP_BUNDLE" ]] || {
     echo "❌ Error: App not found at $APP_BUNDLE"
@@ -20,8 +21,8 @@ MOUNT_DIR="/tmp/battery_alert_dmg_mount"
 
 [[ -f "$BACKGROUND_SRC" ]] || python3 assets/dmg_background.py
 
-if [[ "${CI:-}" == "true" || "${GITHUB_ACTIONS:-}" == "true" ]]; then
-    echo "→ CI environment detected; creating headless DMG..."
+if [[ "$HEADLESS_DMG" == "true" ]]; then
+    echo "→ Headless DMG mode enabled; creating plain installer..."
     rm -f "$DMG_TEMP" "$DMG_FINAL_DIST" "$DMG_FINAL_ROOT"
 
     STAGING_DIR="$(mktemp -d)"
