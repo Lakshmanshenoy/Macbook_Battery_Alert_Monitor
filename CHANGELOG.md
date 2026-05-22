@@ -1,3 +1,10 @@
+## [1.2.5](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.4...v1.2.5) (2026-05-22)
+
+
+### Bug Fixes
+
+* **release:** support CI dmg uploads ([2ec2a34](https://github.com/Lakshmanshenoy/battmon-macos/commit/2ec2a341fe66fa6bfc8508d137dde8ff27891917))
+
 ## [1.2.4](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.3...v1.2.4) (2026-05-22)
 
 
