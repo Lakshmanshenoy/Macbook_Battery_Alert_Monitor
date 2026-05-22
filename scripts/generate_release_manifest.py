@@ -5,10 +5,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 
-from scripts.verify_release_artifacts import compute_sha256, parse_checksums_file
+try:
+    from scripts.verify_release_artifacts import compute_sha256, parse_checksums_file
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from verify_release_artifacts import compute_sha256, parse_checksums_file
 
 
 def build_release_manifest(

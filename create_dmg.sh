@@ -20,6 +20,31 @@ MOUNT_DIR="/tmp/battery_alert_dmg_mount"
 
 [[ -f "$BACKGROUND_SRC" ]] || python3 assets/dmg_background.py
 
+if [[ "${CI:-}" == "true" || "${GITHUB_ACTIONS:-}" == "true" ]]; then
+    echo "→ CI environment detected; creating headless DMG..."
+    rm -f "$DMG_TEMP" "$DMG_FINAL_DIST" "$DMG_FINAL_ROOT"
+
+    STAGING_DIR="$(mktemp -d)"
+    trap 'rm -rf "$STAGING_DIR"' EXIT
+
+    cp -R "$APP_BUNDLE" "$STAGING_DIR/"
+    ln -s /Applications "$STAGING_DIR/Applications"
+
+    hdiutil create \
+        -volname "$APP_NAME" \
+        -srcfolder "$STAGING_DIR" \
+        -ov \
+        -format UDZO \
+        -imagekey zlib-level=9 \
+        "$DMG_FINAL_DIST"
+
+    cp "$DMG_FINAL_DIST" "$DMG_FINAL_ROOT"
+
+    echo "✅ DMG ready: $DMG_FINAL_DIST"
+    echo "✅ Synced root copy: $DMG_FINAL_ROOT"
+    exit 0
+fi
+
 STAGING_DIR="$(mktemp -d)"
 cleanup() {
     if mount | grep -q "on ${MOUNT_DIR} "; then
