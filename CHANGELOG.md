@@ -1,3 +1,10 @@
+## [1.2.11](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.10...v1.2.11) (2026-05-22)
+
+
+### Bug Fixes
+
+* **dmg:** clean up background text alignment and clipping ([b46bd0e](https://github.com/Lakshmanshenoy/battmon-macos/commit/b46bd0e41a55a83d086274a6117eb07de35d47e3))
+
 ## [1.2.10](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.9...v1.2.10) (2026-05-22)
 
 
