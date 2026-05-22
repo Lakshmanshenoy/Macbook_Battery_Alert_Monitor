@@ -9,6 +9,7 @@ DMG_TEMP="dist/${APP_NAME}_temp.dmg"
 DMG_FINAL_DIST="dist/${APP_NAME}.dmg"
 DMG_FINAL_ROOT="${APP_NAME}.dmg"
 BACKGROUND_SRC="assets/dmg_background@2x.png"
+INSTALL_GUIDE_SRC="assets/install_battmon.html"
 VOLUME_ICON="BatteryAlert.icns"
 MOUNT_DIR="/tmp/battery_alert_dmg_mount"
 HEADLESS_DMG="${BATTMON_HEADLESS_DMG:-false}"
@@ -20,6 +21,10 @@ HEADLESS_DMG="${BATTMON_HEADLESS_DMG:-false}"
 }
 
 [[ -f "$BACKGROUND_SRC" ]] || python3 assets/dmg_background.py
+[[ -f "$INSTALL_GUIDE_SRC" ]] || {
+    echo "❌ Error: Installer guide not found at $INSTALL_GUIDE_SRC"
+    exit 1
+}
 
 if [[ "$HEADLESS_DMG" == "true" ]]; then
     echo "→ Headless DMG mode enabled; creating plain installer..."
@@ -29,6 +34,7 @@ if [[ "$HEADLESS_DMG" == "true" ]]; then
     trap 'rm -rf "$STAGING_DIR"' EXIT
 
     cp -R "$APP_BUNDLE" "$STAGING_DIR/"
+    cp "$INSTALL_GUIDE_SRC" "$STAGING_DIR/Install BattMon.html"
     ln -s /Applications "$STAGING_DIR/Applications"
 
     hdiutil create \
@@ -63,6 +69,7 @@ done < <(hdiutil info | awk -v app="$APP_NAME" '$0 ~ "/Volumes/" app {print $NF}
 
 echo "→ Creating staging area..."
 cp -R "$APP_BUNDLE" "$STAGING_DIR/"
+cp "$INSTALL_GUIDE_SRC" "$STAGING_DIR/Install BattMon.html"
 mkdir -p "$STAGING_DIR/.background"
 cp "$BACKGROUND_SRC" "$STAGING_DIR/.background/background.png"
 
@@ -106,6 +113,7 @@ tell application "Finder"
         make new alias file at dmgFolder to POSIX file "/Applications"
         delay 1
 
+        set position of file "Install BattMon.html" of container window to {40, 20}
         set position of application file "${APP_NAME}.app" of container window to {136, 152}
         set position of alias file "Applications" of container window to {384, 152}
 

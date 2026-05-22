@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Install BattMon</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7fb;
+        --panel: rgba(255, 255, 255, 0.92);
+        --text: #1f2937;
+        --muted: #5b6575;
+        --accent: #2e7d32;
+        --accent-soft: rgba(46, 125, 50, 0.12);
+        --border: rgba(31, 41, 55, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top, rgba(46, 125, 50, 0.12), transparent 36%),
+          linear-gradient(180deg, #ffffff 0%, var(--bg) 100%);
+        color: var(--text);
+        display: grid;
+        place-items: center;
+        padding: 32px;
+      }
+
+      .card {
+        width: min(760px, 100%);
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        box-shadow: 0 18px 60px rgba(15, 23, 42, 0.12);
+        padding: 32px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        padding: 8px 12px;
+      }
+
+      h1 {
+        margin: 18px 0 10px;
+        font-size: clamp(30px, 4vw, 44px);
+        line-height: 1.05;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+        font-size: 15px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 28px;
+      }
+
+      .step,
+      .note {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 18px 18px 16px;
+      }
+
+      .step strong,
+      .note strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 15px;
+      }
+
+      ol {
+        margin: 12px 0 0;
+        padding-left: 20px;
+        color: var(--text);
+      }
+
+      li + li {
+        margin-top: 10px;
+      }
+
+      code,
+      .kbd {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.95em;
+      }
+
+      .kbd {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 8px;
+        background: #edf2f7;
+        border: 1px solid var(--border);
+      }
+
+      .footer {
+        margin-top: 24px;
+        padding-top: 18px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 720px) {
+        body {
+          padding: 18px;
+        }
+
+        .card {
+          padding: 24px;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="eyebrow">BattMon Installer Guide</div>
+      <h1>Install BattMon in a few seconds.</h1>
+      <p>
+        BattMon is a lightweight macOS battery monitor. Drag the app into Applications,
+        then open it from there.
+      </p>
+
+      <section class="grid" aria-label="Installation steps and trust note">
+        <div class="step">
+          <strong>Install</strong>
+          <ol>
+            <li>Drag <code>BattMon.app</code> to <code>Applications</code>.</li>
+            <li>Open <code>Applications/BattMon.app</code>.</li>
+            <li>If macOS warns you, choose <span class="kbd">Open Anyway</span> in Privacy &amp; Security.</li>
+          </ol>
+        </div>
+
+        <div class="note">
+          <strong>Why the warning appears</strong>
+          <p>
+            BattMon is open-source and distributed outside the Mac App Store.
+            On unsigned early-stage releases, macOS shows a Gatekeeper warning before first launch.
+          </p>
+        </div>
+
+        <div class="note">
+          <strong>Safe to verify</strong>
+          <p>
+            Release downloads include <code>checksums.txt</code>. You can verify the DMG before opening it.
+          </p>
+        </div>
+
+        <div class="note">
+          <strong>Troubleshooting</strong>
+          <p>
+            If the app is still blocked, right-click <code>BattMon.app</code> and choose <span class="kbd">Open</span> once,
+            or use <code>xattr -dr com.apple.quarantine /Applications/BattMon.app</code> for local testing only.
+          </p>
+        </div>
+      </section>
+
+      <div class="footer">
+        <p>Source: <a href="https://github.com/Lakshmanshenoy/battmon-macos">github.com/Lakshmanshenoy/battmon-macos</a></p>
+        <p>Latest release: <a href="https://github.com/Lakshmanshenoy/battmon-macos/releases/latest">BattMon releases</a></p>
+      </div>
+    </main>
+  </body>
+</html>

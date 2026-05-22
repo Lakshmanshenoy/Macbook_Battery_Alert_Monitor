@@ -53,8 +53,10 @@ Lightweight battery alert monitor for macOS. Get alerts when your battery is run
 
 1. Download `BattMon.dmg`
 2. Open the DMG file
-3. Drag **BattMon.app** to your **Applications** folder
-4. Done! Launch from Applications folder
+3. Open `Install BattMon.html` if you want the short install guide
+4. Drag **BattMon.app** to your **Applications** folder
+5. If macOS warns you, go to **System Settings → Privacy & Security → Open Anyway** or right-click the app and choose **Open** once
+6. Launch **BattMon** from Applications
 
 ### For Developers
 
