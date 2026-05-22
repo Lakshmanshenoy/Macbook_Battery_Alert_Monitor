@@ -1,3 +1,10 @@
+## [1.2.6](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.5...v1.2.6) (2026-05-22)
+
+
+### Bug Fixes
+
+* **release:** automate asset publishing ([ac39f07](https://github.com/Lakshmanshenoy/battmon-macos/commit/ac39f07155304dda44bad789c9cc65da97bda596))
+
 ## [1.2.5](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.4...v1.2.5) (2026-05-22)
 
 
