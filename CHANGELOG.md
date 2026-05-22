@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.3.1...v1.3.2) (2026-05-22)
+
+
+### Bug Fixes
+
+* **preferences:** extend window height to prevent Update Channel / button overlap ([#17](https://github.com/Lakshmanshenoy/battmon-macos/issues/17)) ([67d11cb](https://github.com/Lakshmanshenoy/battmon-macos/commit/67d11cb870e0abf000cb12853d6189a02dcb043a))
+
 ## [1.3.1](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.3.0...v1.3.1) (2026-05-22)
 
 
