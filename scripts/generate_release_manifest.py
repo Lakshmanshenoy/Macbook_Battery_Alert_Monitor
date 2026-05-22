@@ -9,11 +9,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-try:
-    from scripts.verify_release_artifacts import compute_sha256, parse_checksums_file
-except ModuleNotFoundError:
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from verify_release_artifacts import compute_sha256, parse_checksums_file
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from verify_release_artifacts import compute_sha256, parse_checksums_file
 
 
 def build_release_manifest(
