@@ -1,4 +1,4 @@
-APP_VERSION = "1.2.12"
+APP_VERSION = "1.3.0"
 LATEST_STABLE_RELEASE_API = "https://api.github.com/repos/Lakshmanshenoy/battmon-macos/releases/latest"
 RELEASES_API = "https://api.github.com/repos/Lakshmanshenoy/battmon-macos/releases"
 RELEASES_PAGE_URL = "https://github.com/Lakshmanshenoy/battmon-macos/releases"

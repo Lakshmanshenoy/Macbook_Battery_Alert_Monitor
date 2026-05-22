@@ -1,3 +1,10 @@
+## [1.3.0](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.12...v1.3.0) (2026-05-22)
+
+
+### Features
+
+* **dmg:** add branded installer guide ([a7843d1](https://github.com/Lakshmanshenoy/battmon-macos/commit/a7843d1e784a6e44e147b9591a44f1436b879545))
+
 ## [1.2.12](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.11...v1.2.12) (2026-05-22)
 
 
