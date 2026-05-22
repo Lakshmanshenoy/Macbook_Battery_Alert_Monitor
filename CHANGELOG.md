@@ -1,3 +1,10 @@
+## [1.2.7](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.6...v1.2.7) (2026-05-22)
+
+
+### Bug Fixes
+
+* **release:** dispatch asset workflow ([3aeed3d](https://github.com/Lakshmanshenoy/battmon-macos/commit/3aeed3de40a20d7bfc995fecb6b0ab29c777539e))
+
 ## [1.2.6](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.5...v1.2.6) (2026-05-22)
 
 
