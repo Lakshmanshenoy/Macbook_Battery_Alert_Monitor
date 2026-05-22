@@ -174,7 +174,7 @@ class PreferencesWindowController:
                 | NSWindowStyleMaskUtilityWindow
             )
             panel = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
-                NSMakeRect(0, 0, 420, 440),
+                NSMakeRect(0, 0, 420, 490),
                 style,
                 2,
                 False,
@@ -182,13 +182,13 @@ class PreferencesWindowController:
             panel.setTitle_("BattMon Preferences")
             panel.setFloatingPanel_(True)
 
-            effect_view = NSVisualEffectView.alloc().initWithFrame_(NSMakeRect(0, 0, 420, 440))
+            effect_view = NSVisualEffectView.alloc().initWithFrame_(NSMakeRect(0, 0, 420, 490))
             effect_view.setMaterial_(NSVisualEffectMaterialSidebar)
             effect_view.setBlendingMode_(NSVisualEffectBlendingModeBehindWindow)
             effect_view.setState_(NSVisualEffectStateActive)
             panel.setContentView_(effect_view)
 
-            container = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 420, 440))
+            container = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 420, 490))
             effect_view.addSubview_(container)
             self._action_bridge = _PanelActionBridge.alloc().initWithController_(self)
 
@@ -218,31 +218,31 @@ class PreferencesWindowController:
                 header.setFont_(NSFont.boldSystemFontOfSize_(11))
                 container.addSubview_(header)
 
-            add_header("Alerts", 396)
-            add_label("Battery threshold (%)", 364)
-            battery_threshold = add_input(self.app.settings.get("battery_threshold", 20), 360)
+            add_header("Alerts", 446)
+            add_label("Battery threshold (%)", 414)
+            battery_threshold = add_input(self.app.settings.get("battery_threshold", 20), 410)
 
-            add_label("Check interval (seconds)", 330)
-            check_interval = add_input(self.app.settings.get("check_interval", 10), 326)
+            add_label("Check interval (seconds)", 380)
+            check_interval = add_input(self.app.settings.get("check_interval", 10), 376)
 
-            add_label("Alert cooldown (seconds)", 296)
-            alert_cooldown_seconds = add_input(self.app.settings.get("alert_cooldown_seconds", 900), 292)
+            add_label("Alert cooldown (seconds)", 346)
+            alert_cooldown_seconds = add_input(self.app.settings.get("alert_cooldown_seconds", 900), 342)
 
-            add_header("Notifications", 244)
-            enable_sound = add_switch("Enable sound alerts", bool(self.app.settings.get("enable_sound", True)), 212)
-            enable_voice = add_switch("Enable voice alerts", bool(self.app.settings.get("enable_voice", True)), 182)
-            enable_notifications = add_switch("Enable notifications", bool(self.app.settings.get("enable_notifications", True)), 152)
+            add_header("Notifications", 294)
+            enable_sound = add_switch("Enable sound alerts", bool(self.app.settings.get("enable_sound", True)), 262)
+            enable_voice = add_switch("Enable voice alerts", bool(self.app.settings.get("enable_voice", True)), 232)
+            enable_notifications = add_switch("Enable notifications", bool(self.app.settings.get("enable_notifications", True)), 202)
 
-            add_header("General", 118)
-            auto_launch = add_switch("Launch at startup", bool(self.app.settings.get("auto_launch", False)), 86)
+            add_header("General", 168)
+            auto_launch = add_switch("Launch at startup", bool(self.app.settings.get("auto_launch", False)), 136)
             enable_update_checks = add_switch(
                 "Enable automatic update checks",
                 bool(self.app.settings.get("enable_update_checks", True)),
-                56,
+                106,
             )
 
-            add_label("Update channel", 26)
-            update_channel = NSPopUpButton.alloc().initWithFrame_pullsDown_(NSMakeRect(260, 22, 120, 26), False)
+            add_label("Update channel", 76)
+            update_channel = NSPopUpButton.alloc().initWithFrame_pullsDown_(NSMakeRect(260, 72, 120, 26), False)
             update_channel.addItemsWithTitles_(["stable", "beta"])
             selected_channel = str(self.app.settings.get("update_channel", "stable")).strip().lower()
             if selected_channel not in {"stable", "beta"}:
