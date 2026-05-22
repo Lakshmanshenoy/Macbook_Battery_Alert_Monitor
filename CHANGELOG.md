@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.3.0...v1.3.1) (2026-05-22)
+
+
+### Bug Fixes
+
+* **dmg:** polish installer window layout ([#16](https://github.com/Lakshmanshenoy/battmon-macos/issues/16)) ([b8f75c6](https://github.com/Lakshmanshenoy/battmon-macos/commit/b8f75c61d947b245d662281fd85b075b54a4776e))
+
 ## [1.3.0](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.12...v1.3.0) (2026-05-22)
 
 
