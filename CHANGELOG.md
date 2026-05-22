@@ -1,3 +1,10 @@
+## [1.2.10](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.9...v1.2.10) (2026-05-22)
+
+
+### Bug Fixes
+
+* **dmg:** remove installer scrollbars ([13997cb](https://github.com/Lakshmanshenoy/battmon-macos/commit/13997cbad25ac48b24122342fbcf40b6637d7aec))
+
 ## [1.2.9](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.2.8...v1.2.9) (2026-05-22)
 
 
