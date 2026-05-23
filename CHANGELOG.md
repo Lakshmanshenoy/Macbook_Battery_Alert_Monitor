@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.4.0...v1.4.1) (2026-05-23)
+
+
+### Bug Fixes
+
+* **updater:** use certifi CA bundle for update HTTPS requests ([#20](https://github.com/Lakshmanshenoy/battmon-macos/issues/20)) ([f0d992a](https://github.com/Lakshmanshenoy/battmon-macos/commit/f0d992a82f40acdcec6936f81719552bc9d7fbc2))
+
 ## [1.4.0](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.3.2...v1.4.0) (2026-05-23)
 
 
