@@ -1,3 +1,10 @@
+## [1.4.2](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.4.1...v1.4.2) (2026-05-23)
+
+
+### Bug Fixes
+
+* **ci:** allow semantic-release dry-run git push probe ([#21](https://github.com/Lakshmanshenoy/battmon-macos/issues/21)) ([63321d5](https://github.com/Lakshmanshenoy/battmon-macos/commit/63321d575527989daac365b16cb72b25d01202b3))
+
 ## [1.4.1](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.4.0...v1.4.1) (2026-05-23)
 
 
