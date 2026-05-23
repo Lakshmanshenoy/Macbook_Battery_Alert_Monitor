@@ -145,6 +145,7 @@ class BatteryAlertApp(rumps.App):
         self._last_power_state = None
         self._last_power_transition = None
         self._update_check_in_progress = False
+        self._guided_update_in_progress = False
         self._release_validation_in_progress = False
         self._previous_excepthook = None
         self._previous_threading_excepthook = None
@@ -197,8 +198,14 @@ class BatteryAlertApp(rumps.App):
         # Show a lightweight first-run tip once, then remember that onboarding was shown.
         self.maybe_show_first_run_onboarding()
 
-        # Non-blocking update check on startup.
-        self.check_for_updates(manual=False)
+        # Startup update check should not block app launch.
+        def _startup_update_check() -> None:
+            try:
+                self.check_for_updates(manual=False)
+            except Exception as exc:
+                self.log_runtime(f"Startup update check failed: {exc}", level="warning")
+
+        threading.Thread(target=_startup_update_check, daemon=True).start()
     
     def load_config(self):
         """Load configuration from file"""

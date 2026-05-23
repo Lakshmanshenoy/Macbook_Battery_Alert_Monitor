@@ -71,6 +71,7 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
             rumps.MenuItem("Version & Updates", self.show_version_and_updates),
             rumps.MenuItem("Run Update Check", self.check_for_updates_now),
             rumps.MenuItem("Download Latest Release", self.download_latest_release),
+            rumps.MenuItem("Guided Update (Download & Open DMG)", self.download_and_open_latest_installer),
             rumps.MenuItem("Open Releases Page", self.open_releases_page),
             rumps.MenuItem("Run Test Alert", self.test_alert),
             rumps.MenuItem("View Alert History", self.view_alert_history),
@@ -459,6 +460,10 @@ class BatteryAlertApp(LegacyBatteryAlertApp):
     def download_latest_release(self, _: Any = None) -> None:
         self._ensure_managers()
         self.update_checker.download_latest_release(_)
+
+    def download_and_open_latest_installer(self, _: Any = None) -> None:
+        self._ensure_managers()
+        self.update_checker.download_and_open_latest_installer(_)
 
     def build_release_validation_command(self) -> List[str]:
         self._ensure_managers()
