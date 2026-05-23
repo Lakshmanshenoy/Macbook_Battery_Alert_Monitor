@@ -1,3 +1,10 @@
+## [1.4.0](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.3.2...v1.4.0) (2026-05-23)
+
+
+### Features
+
+* **updater:** add guided installer flow and async startup checks ([#18](https://github.com/Lakshmanshenoy/battmon-macos/issues/18)) ([b98861b](https://github.com/Lakshmanshenoy/battmon-macos/commit/b98861b5a1417e275f22616551fe628b551720e6))
+
 ## [1.3.2](https://github.com/Lakshmanshenoy/battmon-macos/compare/v1.3.1...v1.3.2) (2026-05-22)
 
 
