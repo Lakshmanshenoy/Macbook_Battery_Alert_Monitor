@@ -1,6 +1,7 @@
 # mypy: ignore-errors
 import hashlib
 import json
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -11,6 +12,11 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+try:
+    import certifi
+except Exception:  # pragma: no cover - fallback is tested via runtime behavior
+    certifi = None
 
 from .constants import (
     APP_VERSION,
@@ -27,6 +33,7 @@ class UpdateChecker:
 
     def __init__(self, app: "LegacyBatteryAlertApp") -> None:
         self.app = app
+        self._ssl_context = None
 
     def _subprocess_module(self) -> Any:
         gui_module = sys.modules.get("battery_alert_gui")
@@ -39,7 +46,25 @@ class UpdateChecker:
     def _urlopen(self, request_or_url: Any, timeout: int = 6) -> Any:
         gui_module = sys.modules.get("battery_alert_gui")
         urllib_module = getattr(gui_module, "urllib", urllib)
+        ssl_context = self._get_ssl_context()
+        if ssl_context is not None:
+            return urllib_module.request.urlopen(request_or_url, timeout=timeout, context=ssl_context)
         return urllib_module.request.urlopen(request_or_url, timeout=timeout)
+
+    def _get_ssl_context(self) -> Any:
+        if self._ssl_context is not None:
+            return self._ssl_context
+
+        try:
+            if certifi is not None:
+                self._ssl_context = ssl.create_default_context(cafile=certifi.where())
+            else:
+                self._ssl_context = ssl.create_default_context()
+        except Exception as exc:
+            self.app.log_runtime(f"Unable to initialize SSL context: {exc}", level="warning")
+            self._ssl_context = None
+
+        return self._ssl_context
 
     def _rumps_module(self) -> Any:
         gui_module = sys.modules.get("battery_alert_gui")
