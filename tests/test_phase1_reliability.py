@@ -6,6 +6,8 @@ import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from src.battery_alert import updater as updater_module
+
 
 def _install_rumps_stub():
     rumps_stub = types.ModuleType("rumps")
@@ -715,6 +717,148 @@ def test_download_latest_release_uses_known_release_url(tmp_path, monkeypatch):
 
     assert commands == [["open", "https://example.com/latest"]]
     assert shown == [("Maintenance", "Opened latest release download page.")]
+
+
+def test_run_manual_update_check_prompts_and_opens_release_when_clicked(tmp_path, monkeypatch):
+    app = _new_app_for_unit_tests(tmp_path)
+    shown = []
+    opened = []
+
+    app._ensure_managers()
+    checker = app.update_checker
+
+    battery_alert_module.rumps.Window.next_response = types.SimpleNamespace(clicked=True, text="")
+    monkeypatch.setattr(
+        app,
+        "check_for_updates",
+        lambda manual=False: {
+            "status": "update_available",
+            "message": "Version 9.9.9 is available. You are on 1.1.0.",
+        },
+    )
+    monkeypatch.setattr(app, "show_non_blocking_feedback", lambda title, message: shown.append((title, message)))
+    monkeypatch.setattr(checker, "open_releases_page", lambda _: opened.append(True))
+
+    app._update_check_in_progress = True
+    app._run_manual_update_check()
+
+    assert shown[0] == ("Maintenance", "Update check complete: Version 9.9.9 is available. You are on 1.1.0.")
+    assert opened == [True]
+    assert app._update_check_in_progress is False
+
+
+def test_guided_update_download_and_open_installer(tmp_path, monkeypatch):
+    app = _new_app_for_unit_tests(tmp_path)
+    app._guided_update_in_progress = False
+    shown = []
+    commands = []
+    started = []
+
+    app._ensure_managers()
+    checker = app.update_checker
+
+    monkeypatch.setattr(app, "show_non_blocking_feedback", lambda title, message: shown.append((title, message)))
+    monkeypatch.setattr(app, "log_runtime", lambda *args, **kwargs: None)
+    monkeypatch.setattr(updater_module.Path, "home", lambda: Path(tmp_path))
+
+    payload = {
+        "tag_name": f"v{_next_patch_version(battery_alert_module.APP_VERSION)}",
+        "html_url": "https://example.com/releases/tag/v1.1.1",
+        "assets": [
+            {
+                "name": "BattMon.dmg",
+                "browser_download_url": "https://example.com/BattMon.dmg",
+            }
+        ],
+    }
+
+    monkeypatch.setattr(checker, "_fetch_release_payload", lambda update_channel=None: payload)
+
+    def fake_download(url, destination):
+        destination.write_bytes(b"fake dmg bytes")
+
+    monkeypatch.setattr(checker, "_download_file", fake_download)
+    monkeypatch.setattr(battery_alert_module.subprocess, "run", lambda command, check=False: commands.append(command))
+
+    class FakeThread:
+        def __init__(self, target, daemon=False):
+            self.target = target
+            self.daemon = daemon
+
+        def start(self):
+            started.append(True)
+            self.target()
+
+    monkeypatch.setattr(battery_alert_module.threading, "Thread", FakeThread)
+
+    app.download_and_open_latest_installer(None)
+
+    expected_path = Path(tmp_path) / "Downloads" / f"BattMon-{_next_patch_version(battery_alert_module.APP_VERSION)}.dmg"
+    assert started == [True]
+    assert commands == [["open", str(expected_path)]]
+    assert expected_path.exists()
+    assert shown[0] == ("Maintenance", "Guided update started.")
+    assert shown[-1] == (
+        "Maintenance",
+        f"Guided update ready: installer downloaded to {expected_path.name} and opened.",
+    )
+    assert app._guided_update_in_progress is False
+
+
+def test_guided_update_checksum_mismatch_stops_open(tmp_path, monkeypatch):
+    app = _new_app_for_unit_tests(tmp_path)
+    app._guided_update_in_progress = False
+    shown = []
+    commands = []
+
+    app._ensure_managers()
+    checker = app.update_checker
+
+    monkeypatch.setattr(app, "show_non_blocking_feedback", lambda title, message: shown.append((title, message)))
+    monkeypatch.setattr(app, "log_runtime", lambda *args, **kwargs: None)
+    monkeypatch.setattr(updater_module.Path, "home", lambda: Path(tmp_path))
+
+    payload = {
+        "tag_name": f"v{_next_patch_version(battery_alert_module.APP_VERSION)}",
+        "html_url": "https://example.com/releases/tag/v1.1.1",
+        "assets": [
+            {
+                "name": "BattMon.dmg",
+                "browser_download_url": "https://example.com/BattMon.dmg",
+            },
+            {
+                "name": "checksums.txt",
+                "browser_download_url": "https://example.com/checksums.txt",
+            },
+        ],
+    }
+
+    monkeypatch.setattr(checker, "_fetch_release_payload", lambda update_channel=None: payload)
+
+    def fake_download(url, destination):
+        if str(url).endswith("checksums.txt"):
+            destination.write_text("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  BattMon.dmg\n")
+        else:
+            destination.write_bytes(b"fake dmg bytes")
+
+    monkeypatch.setattr(checker, "_download_file", fake_download)
+    monkeypatch.setattr(battery_alert_module.subprocess, "run", lambda command, check=False: commands.append(command))
+
+    class FakeThread:
+        def __init__(self, target, daemon=False):
+            self.target = target
+            self.daemon = daemon
+
+        def start(self):
+            self.target()
+
+    monkeypatch.setattr(battery_alert_module.threading, "Thread", FakeThread)
+
+    app.download_and_open_latest_installer(None)
+
+    assert commands == []
+    assert shown[-1] == ("Maintenance", "Guided update failed: checksum verification mismatch.")
+    assert app._guided_update_in_progress is False
 
 
 def test_support_bundle_diagnostics_do_not_leak_home_path(tmp_path):

@@ -1,8 +1,11 @@
 # mypy: ignore-errors
+import hashlib
 import json
 import subprocess
 import sys
+import tempfile
 import threading
+import urllib
 import urllib.error
 import urllib.request
 from datetime import datetime
@@ -33,6 +36,11 @@ class UpdateChecker:
         gui_module = sys.modules.get("battery_alert_gui")
         return getattr(gui_module, "threading", threading)
 
+    def _urlopen(self, request_or_url: Any, timeout: int = 6) -> Any:
+        gui_module = sys.modules.get("battery_alert_gui")
+        urllib_module = getattr(gui_module, "urllib", urllib)
+        return urllib_module.request.urlopen(request_or_url, timeout=timeout)
+
     def _rumps_module(self) -> Any:
         gui_module = sys.modules.get("battery_alert_gui")
         rumps = getattr(gui_module, "rumps", None)
@@ -42,6 +50,84 @@ class UpdateChecker:
         import rumps as imported_rumps
 
         return imported_rumps
+
+    def _http_headers(self) -> Dict[str, str]:
+        return {
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "battmon-macos",
+        }
+
+    def _release_api_url(self, update_channel: Optional[str] = None) -> str:
+        channel = (update_channel or self.app.settings.get("update_channel", UPDATE_CHANNEL) or UPDATE_CHANNEL).strip().lower()
+        return LATEST_STABLE_RELEASE_API if channel == "stable" else RELEASES_API
+
+    def _fetch_release_payload(self, update_channel: Optional[str] = None) -> Dict[str, Any]:
+        channel = (update_channel or self.app.settings.get("update_channel", UPDATE_CHANNEL) or UPDATE_CHANNEL).strip().lower()
+        request = urllib.request.Request(
+            self._release_api_url(channel),
+            headers=self._http_headers(),
+        )
+        with self._urlopen(request, timeout=8) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+
+        if channel == "stable":
+            return payload if isinstance(payload, dict) else {}
+
+        release_payload: Dict[str, Any] = {}
+        if isinstance(payload, list):
+            for candidate in payload:
+                if isinstance(candidate, dict) and candidate.get("prerelease"):
+                    release_payload = candidate
+                    break
+            if not release_payload:
+                for candidate in payload:
+                    if isinstance(candidate, dict):
+                        release_payload = candidate
+                        break
+        return release_payload
+
+    def _release_info_from_payload(self, release_payload: Dict[str, Any]) -> Dict[str, str]:
+        return {
+            "version": str(release_payload.get("tag_name", "")).lstrip("v"),
+            "url": str(release_payload.get("html_url", "")) or RELEASES_PAGE_URL,
+        }
+
+    def _find_release_asset_url(self, release_payload: Dict[str, Any], file_name: str) -> str:
+        assets = release_payload.get("assets")
+        if not isinstance(assets, list):
+            return ""
+        for asset in assets:
+            if not isinstance(asset, dict):
+                continue
+            if str(asset.get("name", "")) == file_name:
+                return str(asset.get("browser_download_url", ""))
+        return ""
+
+    def _download_file(self, url: str, destination: Path) -> None:
+        request = urllib.request.Request(url, headers=self._http_headers())
+        with self._urlopen(request, timeout=30) as response:
+            destination.write_bytes(response.read())
+
+    def _sha256_file(self, path: Path) -> str:
+        hasher = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                hasher.update(chunk)
+        return hasher.hexdigest()
+
+    def _checksum_from_manifest(self, checksums_text: str, target_name: str) -> str:
+        for line in checksums_text.splitlines():
+            cleaned = line.strip()
+            if not cleaned:
+                continue
+            parts = cleaned.split()
+            if len(parts) < 2:
+                continue
+            digest = parts[0].strip().lower()
+            file_token = parts[-1].strip().lstrip("*")
+            if file_token == target_name:
+                return digest
+        return ""
 
     def record_update_check_result(
         self,
@@ -179,6 +265,16 @@ class UpdateChecker:
 
             if status == "update_available":
                 self.app.show_maintenance_status(f"Update check complete: {message}")
+                prompt = self._rumps_module().Window(
+                    message + "\n\nOpen the release page now?",
+                    title="Update Available",
+                    default_text="",
+                    ok="Open",
+                    cancel="Later",
+                )
+                response = prompt.run()
+                if response.clicked:
+                    self.open_releases_page(None)
             elif status == "up_to_date":
                 self.app.show_maintenance_status("Update check complete: no updates found.")
             elif status == "unknown":
@@ -216,34 +312,71 @@ class UpdateChecker:
 
     def get_latest_release(self) -> Dict[str, str]:
         """Fetch latest release details according to selected update channel."""
-        update_channel = self.app.settings.get("update_channel", UPDATE_CHANNEL)
-        api_url = LATEST_STABLE_RELEASE_API if update_channel == "stable" else RELEASES_API
-        request = urllib.request.Request(
-            api_url,
-            headers={"Accept": "application/vnd.github+json", "User-Agent": "battmon-macos"},
-        )
-        with urllib.request.urlopen(request, timeout=6) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+        release_payload = self._fetch_release_payload()
+        return self._release_info_from_payload(release_payload)
 
-        if update_channel == "stable":
-            release_payload = payload
-        else:
-            release_payload = {}
-            if isinstance(payload, list):
-                for candidate in payload:
-                    if isinstance(candidate, dict) and candidate.get("prerelease"):
-                        release_payload = candidate
-                        break
-                if not release_payload:
-                    for candidate in payload:
-                        if isinstance(candidate, dict):
-                            release_payload = candidate
-                            break
+    def _run_guided_update_download(self) -> None:
+        downloads_dir = Path.home() / "Downloads"
+        downloads_dir.mkdir(parents=True, exist_ok=True)
 
-        return {
-            "version": str(release_payload.get("tag_name", "")).lstrip("v"),
-            "url": str(release_payload.get("html_url", "")) or RELEASES_PAGE_URL,
-        }
+        try:
+            release_payload = self._fetch_release_payload()
+            release_info = self._release_info_from_payload(release_payload)
+            latest_version = release_info.get("version", "")
+
+            if not latest_version:
+                self.app.show_maintenance_status("Guided update failed: latest version unavailable.")
+                return
+
+            if not self.is_newer_version(latest_version, APP_VERSION):
+                self.app.show_maintenance_status("Guided update: you are already on the latest version.")
+                return
+
+            dmg_url = self._find_release_asset_url(release_payload, "BattMon.dmg")
+            if not dmg_url:
+                self.app.show_maintenance_status("Guided update failed: BattMon.dmg was not found in release assets.")
+                return
+
+            dmg_destination = downloads_dir / f"BattMon-{latest_version}.dmg"
+            self.app.show_maintenance_status("Guided update: downloading installer…")
+            self._download_file(dmg_url, dmg_destination)
+
+            checksums_url = self._find_release_asset_url(release_payload, "checksums.txt")
+            if checksums_url:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_file:
+                    temp_path = Path(temp_file.name)
+                try:
+                    self._download_file(checksums_url, temp_path)
+                    expected_digest = self._checksum_from_manifest(temp_path.read_text(encoding="utf-8", errors="replace"), "BattMon.dmg")
+                    if expected_digest:
+                        actual_digest = self._sha256_file(dmg_destination)
+                        if actual_digest != expected_digest:
+                            self.app.show_maintenance_status("Guided update failed: checksum verification mismatch.")
+                            return
+                finally:
+                    temp_path.unlink(missing_ok=True)
+
+            self._subprocess_module().run(["open", str(dmg_destination)], check=False)
+            self.app.show_maintenance_status(
+                f"Guided update ready: installer downloaded to {dmg_destination.name} and opened."
+            )
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+            self.app.log_runtime(f"Guided update download failed: {exc}", level="warning")
+            self.app.show_maintenance_status("Guided update failed: unable to download release assets.")
+        except Exception as exc:
+            self.app.log_runtime(f"Guided update failed: {exc}", level="warning")
+            self.app.show_maintenance_status("Guided update failed: unexpected error.")
+        finally:
+            self.app._guided_update_in_progress = False
+
+    def download_and_open_latest_installer(self, _: Any = None) -> None:
+        if getattr(self.app, "_guided_update_in_progress", False):
+            self.app.show_maintenance_status("Guided update is already in progress.")
+            return
+
+        self.app._guided_update_in_progress = True
+        self.app.show_maintenance_status("Guided update started.")
+        self._threading_module().Thread(target=self._run_guided_update_download, daemon=True).start()
 
     def download_latest_release(self, _: Any = None) -> None:
         try:
